@@ -5,9 +5,8 @@ from pathlib import Path
 
 from database import engine
 from models import Base
-from routers import depositos, optimize, pdvs, reponedores, visitas, vision, demo
+from routers import depositos, optimize, pdvs, reponedores, visitas, vision, demo, incidencias
 Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="gvenado API", version="0.1.0")
 
 app.add_middleware(
@@ -25,6 +24,7 @@ app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 app.include_router(pdvs.router)
 app.include_router(vision.router)
 app.include_router(demo.router)
+app.include_router(incidencias.router)
 app.include_router(reponedores.router)
 app.include_router(visitas.router)
 app.include_router(optimize.router)
