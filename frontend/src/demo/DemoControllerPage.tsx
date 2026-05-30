@@ -11,6 +11,7 @@ const DEMO_STEPS = [
     { id: "cerrar",     label: "⚡ Cerrar visita",           endpoint: "/api/demo/cerrar-visita",  timing: "3:15" },
     { id: "redistrib",  label: "🔄 Redistribución",         endpoint: "/api/demo/redistribucion", timing: "3:35" },
     { id: "impacto",    label: "🏆 Mostrar impacto",        endpoint: "/api/demo/impacto",        timing: "3:55" },
+    { id: "bloqueo", label: "🚧 Reportar bloqueo", endpoint: "/api/incidencias/reportar?lat=-16.5050&lng=-68.1450&tipo=bloqueo&descripcion=Bloqueo+en+Av+6+de+Agosto", timing: "situacional" },
 ];
 
 export default function DemoControllerPage() {
