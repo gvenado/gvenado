@@ -81,3 +81,15 @@ class DepositoPOP(Base):
     longitud = Column(Float, nullable=False)
     descripcion = Column(Text, nullable=True)
     activo = Column(Boolean, default=True)
+
+
+class FotoAnalisis(Base):
+    __tablename__ = "fotos_analisis"
+
+    id = Column(Integer, primary_key=True, index=True)
+    visita_id = Column(Integer, ForeignKey("visitas.id"), nullable=True)
+    filename = Column(String(500), nullable=False)
+    foto_url = Column(String(500), nullable=False)
+    hash_sha256 = Column(String(64), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    analysis = Column(Text, nullable=False)  # JSON blob
