@@ -14,6 +14,12 @@ class SupervisorOut(SupervisorBase):
     model_config = {"from_attributes": True}
 
 
+# --- Mobility profile ---
+class PerfilMovilidad(BaseModel):
+    tipo: str
+    velocidad_kmh: float
+
+
 # --- Reponedor ---
 class ReponedorBase(BaseModel):
     nombre: str
@@ -23,6 +29,16 @@ class ReponedorBase(BaseModel):
 class ReponedorOut(ReponedorBase):
     id: int
     supervisor: SupervisorOut
+
+    model_config = {"from_attributes": True}
+
+
+class ReponedorWithPerfilOut(BaseModel):
+    id: int
+    nombre: str
+    supervisor_id: int
+    supervisor: SupervisorOut
+    perfil_movilidad: PerfilMovilidad
 
     model_config = {"from_attributes": True}
 
@@ -90,6 +106,20 @@ class VisitaDetail(VisitaOut):
     model_config = {"from_attributes": True}
 
 
+# --- Mochila / Ruta-hoy ---
+class MochilaOut(BaseModel):
+    marca_precios: int
+    colgantes: int
+    cenefas: int
+
+
+class RutaHoyOut(BaseModel):
+    reponedor_id: int
+    pdvs: list[PDVOut]
+    mochila: MochilaOut
+    tiempo_estimado: int
+
+
 # --- Deposito POP ---
 class DepositoPOPOut(BaseModel):
     id: int
@@ -102,19 +132,53 @@ class DepositoPOPOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# --- Optimize ---
-class OptimizeRequest(BaseModel):
-    reponedor_id: int
-    fecha: date
-    max_pdvs: Optional[int] = None
+class StockOut(BaseModel):
+    marca_precios: int
+    colgantes: int
+    cenefas: int
 
 
-class OptimizeResponse(BaseModel):
-    reponedor_id: int
+class DepositoPOPStockOut(BaseModel):
+    id: int
+    mercado: str
+    stock: StockOut
+    consumo_promedio_diario: StockOut
+    dias_restantes: int
+    riesgo_quiebre: str
+
+
+# --- VRP Optimize (multi-vehicle, all reponedores) ---
+class VRPRequest(BaseModel):
     fecha: date
-    ruta: list[dict]
-    distancia_total_km: float
-    tiempo_estimado_min: int
+    restricciones: dict = {}
+
+
+class RutaReponedorOut(BaseModel):
+    reponedor_id: int
+    reponedor_nombre: str
+    pdvs: list[dict]
+    total_km: float
+    total_tiempo_min: int
+    cantidad_pdvs: int
+
+
+class MetricasGlobalesOut(BaseModel):
+    total_km: float
+    total_tiempo_min: int
+    pdvs_asignados: int
+    pdvs_totales_dia: int
+    reponedores_usados: int
+    max_tiempo_ruta_min: int
+    balance_carga: dict
+
+
+class VRPResponse(BaseModel):
+    rutas_por_reponedor: dict[str, RutaReponedorOut]
+    metricas_globales: MetricasGlobalesOut
+    pdvs_sin_asignar: list[int] = []
+    infactible: bool = False
+    from_cache: bool = False
+    notas: list[str] = []
 
 
 # --- Simulate redistribution ---
