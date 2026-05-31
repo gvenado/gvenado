@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, type ReactNode } from 'react'
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Users,
@@ -19,6 +19,7 @@ import {
   Filter,
   ChevronDown,
   Target,
+  Clock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/dashboard/layouts/DashboardLayout'
@@ -26,89 +27,140 @@ import { RedistributionModal } from '@/dashboard/components/RedistributionModal'
 import { ROUTES } from '@/dashboard/utils/constants'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { api } from '@/api/client'
+import type { BackendReponedor } from '@/api/client'
 
 /* ------------------------------------------------------------------ */
-/*  Exact data from spec                                                */
+/*  Colors (stable, index-based)                                        */
 /* ------------------------------------------------------------------ */
 
-interface ExactRep {
-  id: string
-  name: string
+const REP_COLORS = [
+  '#2563EB', '#16A34A', '#F59E0B', '#DC2626', '#7C3AED',
+  '#0891B2', '#D946EF', '#059669', '#B91C1C', '#1D4ED8',
+  '#15803D', '#D97706', '#6D28D9', '#0E7490', '#C026D3',
+  '#047857', '#9F1239', '#1E40AF', '#166534', '#92400E',
+  '#5B21B6', '#164E63', '#86198F', '#065F46',
+]
+
+/* ------------------------------------------------------------------ */
+/*  Mock/derived data (stable by index — backend does not provide       */
+/*  deviation, efficiency, progress, or status)                         */
+/* ------------------------------------------------------------------ */
+
+const MOCK_DERIVED: ReadonlyArray<{ deviation: number; efficiency: number; pdvs: number }> = [
+  { deviation: 18, efficiency: 82, pdvs: 12 },
+  { deviation: 8,  efficiency: 88, pdvs: 10 },
+  { deviation: 5,  efficiency: 90, pdvs: 11 },
+  { deviation: 24, efficiency: 74, pdvs: 13 },
+  { deviation: -3, efficiency: 93, pdvs: 9  },
+  { deviation: -6, efficiency: 96, pdvs: 11 },
+  { deviation: 27, efficiency: 68, pdvs: 14 },
+  { deviation: -1, efficiency: 91, pdvs: 10 },
+  { deviation: -10,efficiency: 95, pdvs: 8  },
+  { deviation: 12, efficiency: 79, pdvs: 12 },
+  { deviation: 15, efficiency: 85, pdvs: 10 },
+  { deviation: 3,  efficiency: 87, pdvs: 9  },
+  { deviation: -8, efficiency: 94, pdvs: 11 },
+  { deviation: 20, efficiency: 72, pdvs: 13 },
+  { deviation: 9,  efficiency: 89, pdvs: 10 },
+  { deviation: -4, efficiency: 92, pdvs: 8  },
+  { deviation: 22, efficiency: 76, pdvs: 12 },
+  { deviation: 6,  efficiency: 83, pdvs: 10 },
+  { deviation: -12,efficiency: 97, pdvs: 9  },
+  { deviation: 16, efficiency: 80, pdvs: 11 },
+  { deviation: 31, efficiency: 65, pdvs: 14 },
+  { deviation: -2, efficiency: 93, pdvs: 10 },
+  { deviation: 11, efficiency: 86, pdvs: 12 },
+  { deviation: -7, efficiency: 91, pdvs: 9  },
+]
+
+/* ------------------------------------------------------------------ */
+/*  Types                                                               */
+/* ------------------------------------------------------------------ */
+
+interface DisplayRep {
+  id: string         // String(backendId), e.g. "1"
+  backendId: number
+  name: string       // backend: nombre
+  supervisor: string // backend: supervisor.nombre
+  mobilityType: string // backend: perfil_movilidad.tipo
+  velocidad: number    // backend: perfil_movilidad.velocidad_kmh
+  color: string
+  // MOCK/DERIVED fields (no backend equivalent):
   pdvs: number
   completed: number
   progressPct: number
   deviation: number
   efficiency: number
   status: 'overloaded' | 'en_riesgo' | 'en_tiempo'
-  color: string
-  mobility: string
 }
 
-const EXACT_DATA: ExactRep[] = [
-  { id: 'rep-1', name: 'Reponedor 1', pdvs: 12, completed: 10, progressPct: 86, deviation: 18, efficiency: 82, status: 'overloaded', color: '#2563EB', mobility: 'A pie' },
-  { id: 'rep-2', name: 'Reponedor 2', pdvs: 10, completed: 8, progressPct: 78, deviation: 8, efficiency: 88, status: 'en_tiempo', color: '#16A34A', mobility: 'Bicicleta' },
-  { id: 'rep-3', name: 'Reponedor 3', pdvs: 11, completed: 8, progressPct: 71, deviation: 5, efficiency: 90, status: 'en_tiempo', color: '#F59E0B', mobility: 'Moto' },
-  { id: 'rep-4', name: 'Reponedor 4', pdvs: 13, completed: 9, progressPct: 69, deviation: 24, efficiency: 74, status: 'overloaded', color: '#DC2626', mobility: 'A pie' },
-  { id: 'rep-5', name: 'Reponedor 5', pdvs: 9, completed: 7, progressPct: 82, deviation: -3, efficiency: 93, status: 'en_tiempo', color: '#7C3AED', mobility: 'Auto' },
-  { id: 'rep-6', name: 'Reponedor 6', pdvs: 11, completed: 8, progressPct: 74, deviation: -6, efficiency: 96, status: 'en_tiempo', color: '#0891B2', mobility: 'Bicicleta' },
-  { id: 'rep-7', name: 'Reponedor 7', pdvs: 14, completed: 9, progressPct: 62, deviation: 27, efficiency: 68, status: 'overloaded', color: '#D946EF', mobility: 'A pie' },
-  { id: 'rep-8', name: 'Reponedor 8', pdvs: 10, completed: 8, progressPct: 76, deviation: -1, efficiency: 91, status: 'en_tiempo', color: '#059669', mobility: 'Moto' },
-  { id: 'rep-9', name: 'Reponedor 9', pdvs: 8, completed: 7, progressPct: 88, deviation: -10, efficiency: 95, status: 'en_tiempo', color: '#2563EB', mobility: 'Auto' },
-  { id: 'rep-10', name: 'Reponedor 10', pdvs: 12, completed: 8, progressPct: 70, deviation: 12, efficiency: 79, status: 'en_riesgo', color: '#DC2626', mobility: 'A pie' },
-]
-
-/* ------------------------------------------------------------------ */
-/*  Mock PDV assignments for route map                                 */
-/* ------------------------------------------------------------------ */
-
-interface MockPdv {
+interface MapPdv {
   id: string
   name: string
   address: string
-  repId: string
-  status: string
   lat: number
   lng: number
   visitOrder: number
+  status: 'pending' | 'completed'
 }
 
-const MOCK_PDVS: MockPdv[] = [
-  { id: 'pdv-1', name: 'Supermercado El Prado', address: 'Av. 16 de Julio #1234', repId: 'rep-1', status: 'pending', lat: -16.495, lng: -68.134, visitOrder: 1 },
-  { id: 'pdv-2', name: 'Minimarket San Jorge', address: 'Calle 23 de Marzo #456', repId: 'rep-1', status: 'pending', lat: -16.507, lng: -68.127, visitOrder: 2 },
-  { id: 'pdv-3', name: 'Tienda San Pedro', address: 'Av. Pando #789', repId: 'rep-1', status: 'pending', lat: -16.515, lng: -68.119, visitOrder: 3 },
-  { id: 'pdv-4', name: 'Almacén Central', address: 'Calle Bolívar #321', repId: 'rep-1', status: 'completed', lat: -16.490, lng: -68.145, visitOrder: 4 },
-  { id: 'pdv-5', name: 'Bodega Sur', address: 'Av. Argentina #555', repId: 'rep-1', status: 'completed', lat: -16.527, lng: -68.103, visitOrder: 5 },
-  { id: 'pdv-6', name: 'Mercado Norte', address: 'Calle Comercio #777', repId: 'rep-1', status: 'completed', lat: -16.534, lng: -68.092, visitOrder: 6 },
-  { id: 'pdv-7', name: 'Distribuidora Este', address: 'Av. América #888', repId: 'rep-1', status: 'completed', lat: -16.539, lng: -68.082, visitOrder: 7 },
-  { id: 'pdv-8', name: 'Depósito Oeste', address: 'Calle Linares #111', repId: 'rep-2', status: 'pending', lat: -16.530, lng: -68.088, visitOrder: 1 },
-  { id: 'pdv-9', name: 'Kiosko Central', address: 'Av. Villazón #222', repId: 'rep-2', status: 'pending', lat: -16.522, lng: -68.097, visitOrder: 2 },
-  { id: 'pdv-10', name: 'Mini Market Sur', address: 'Calle Potosí #333', repId: 'rep-2', status: 'completed', lat: -16.514, lng: -68.108, visitOrder: 3 },
-  { id: 'pdv-11', name: 'Farmacia Norte', address: 'Av. Montes #444', repId: 'rep-3', status: 'pending', lat: -16.490, lng: -68.150, visitOrder: 1 },
-  { id: 'pdv-12', name: 'Librería San Miguel', address: 'Calle 21 #555', repId: 'rep-3', status: 'pending', lat: -16.480, lng: -68.140, visitOrder: 2 },
-  { id: 'pdv-13', name: 'Panadería La Paz', address: 'Av. Bush #666', repId: 'rep-3', status: 'pending', lat: -16.490, lng: -68.170, visitOrder: 3 },
-  { id: 'pdv-14', name: 'Carnicería Prado', address: 'Calle Colón #777', repId: 'rep-4', status: 'pending', lat: -16.518, lng: -68.100, visitOrder: 1 },
-  { id: 'pdv-15', name: 'Abarrotes Sur', address: 'Av. Arce #888', repId: 'rep-4', status: 'completed', lat: -16.510, lng: -68.120, visitOrder: 2 },
-]
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+interface RouteData {
+  pdvCount: number
+  mochila: { marca_precios: number; colgantes: number; cenefas: number }
+  tiempo_estimado: number
+  mapPdvs: MapPdv[]
+}
 
 type SortKey = 'deviation' | 'efficiency' | 'status' | 'name'
 type SortDir = 'asc' | 'desc' | null
 
 /* ------------------------------------------------------------------ */
-/*  Status config                                                      */
+/*  Status config                                                       */
 /* ------------------------------------------------------------------ */
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string }> = {
   overloaded: { label: 'Sobrecargado', bg: '#FEF2F2', text: '#DC2626', border: '#FECACA' },
-  en_riesgo: { label: 'En riesgo', bg: '#FFFBEB', text: '#F59E0B', border: '#FDE68A' },
-  en_tiempo: { label: 'En tiempo', bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
+  en_riesgo:  { label: 'En riesgo',   bg: '#FFFBEB', text: '#F59E0B', border: '#FDE68A' },
+  en_tiempo:  { label: 'En tiempo',   bg: '#F0FDF4', text: '#16A34A', border: '#BBF7D0' },
 }
 
 /* ------------------------------------------------------------------ */
-/*  Mini dual-line chart                                               */
+/*  Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+function deriveStatus(deviation: number): DisplayRep['status'] {
+  if (deviation >= 20) return 'overloaded'
+  if (deviation >= 8)  return 'en_riesgo'
+  return 'en_tiempo'
+}
+
+function toDisplayRep(r: BackendReponedor, index: number): DisplayRep {
+  const d = MOCK_DERIVED[index % MOCK_DERIVED.length]
+  const progressPct = Math.min(100, Math.max(50, Math.round(d.efficiency * 0.9)))
+  return {
+    id: String(r.id),
+    backendId: r.id,
+    name: r.nombre,
+    supervisor: r.supervisor?.nombre ?? '—',
+    mobilityType: r.perfil_movilidad?.tipo ?? 'moto',
+    velocidad: r.perfil_movilidad?.velocidad_kmh ?? 22,
+    color: REP_COLORS[index % REP_COLORS.length],
+    pdvs: d.pdvs,
+    completed: Math.floor(d.pdvs * progressPct / 100),
+    progressPct,
+    deviation: d.deviation,
+    efficiency: d.efficiency,
+    status: deriveStatus(d.deviation),
+  }
+}
+
+function today(): string {
+  return new Date().toISOString().split('T')[0]
+}
+
+/* ------------------------------------------------------------------ */
+/*  Mini dual-line chart                                                */
 /* ------------------------------------------------------------------ */
 
 function MiniDualChart({ greenData, redData }: { greenData: number[]; redData: number[] }) {
@@ -118,21 +170,19 @@ function MiniDualChart({ greenData, redData }: { greenData: number[]; redData: n
   const min = Math.min(...all)
   const max = Math.max(...all)
   const range = max - min || 1
-
   function pts(data: number[]) {
     return data.map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`).join(' ')
   }
-
   return (
     <svg width={w} height={h} className="shrink-0">
       <polyline points={pts(greenData)} fill="none" stroke="#16A34A" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      <polyline points={pts(redData)} fill="none" stroke="#DC2626" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
+      <polyline points={pts(redData)}   fill="none" stroke="#DC2626" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.6} />
     </svg>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/*  Sparkline (embedded in card bottom)                                */
+/*  Sparkline                                                           */
 /* ------------------------------------------------------------------ */
 
 function CardSparkline({ data, color }: { data: number[]; color: string }) {
@@ -151,10 +201,10 @@ function CardSparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Sub-components                                                     */
+/*  Sub-components                                                      */
 /* ------------------------------------------------------------------ */
 
-function StatusPill({ status }: { status: ExactRep['status'] }) {
+function StatusPill({ status }: { status: DisplayRep['status'] }) {
   const s = STATUS_CONFIG[status]
   return (
     <span
@@ -208,7 +258,7 @@ function MetricBox({ icon, label, value, valueColor = '#111827' }: { icon: React
   )
 }
 
-function RouteMapPreview({ pdvs, repName, repColor: _repColor }: { pdvs: MockPdv[]; repName: string; repColor: string }) {
+function RouteMapPreview({ pdvs, repName, repColor: _repColor }: { pdvs: MapPdv[]; repName: string; repColor: string }) {
   const center = pdvs.length > 0
     ? { lat: pdvs.reduce((s, p) => s + p.lat, 0) / pdvs.length, lng: pdvs.reduce((s, p) => s + p.lng, 0) / pdvs.length }
     : { lat: -16.5, lng: -68.12 }
@@ -269,7 +319,7 @@ function RouteMapPreview({ pdvs, repName, repColor: _repColor }: { pdvs: MockPdv
 }
 
 /* ------------------------------------------------------------------ */
-/*  Page                                                               */
+/*  Page                                                                */
 /* ------------------------------------------------------------------ */
 
 export function ReponedoresPage() {
@@ -279,6 +329,80 @@ export function ReponedoresPage() {
   const [sortDir, setSortDir] = useState<SortDir>(null)
   const [detailTab, setDetailTab] = useState<'route' | 'trend' | 'microtasks' | 'upcoming'>('route')
   const [redistModalOpen, setRedistModalOpen] = useState(false)
+
+  // Real data from GET /api/reponedores
+  const [reponedores, setReponedores] = useState<DisplayRep[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Real route data from GET /api/reponedores/{id}/ruta-hoy
+  const [routeData, setRouteData] = useState<RouteData | null>(null)
+  const [routeLoading, setRouteLoading] = useState(false)
+  const [routeError, setRouteError] = useState<string | null>(null)
+
+  // Load all 24 reponedores on mount
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    api.getReponedores()
+      .then((data: BackendReponedor[]) => {
+        if (cancelled) return
+        setReponedores(data.map(toDisplayRep))
+        setLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Error al cargar reponedores')
+        setLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
+  // Load route for selected reponedor
+  useEffect(() => {
+    if (!selectedId) {
+      setRouteData(null)
+      setRouteLoading(false)
+      setRouteError(null)
+      return
+    }
+    const rep = reponedores.find(r => r.id === selectedId)
+    if (!rep) return
+
+    let cancelled = false
+    setRouteLoading(true)
+    setRouteError(null)
+    setRouteData(null)
+
+    api.getRutaHoy(rep.backendId, today())
+      .then(data => {
+        if (cancelled) return
+        const mapPdvs: MapPdv[] = data.pdvs.map((p, i) => ({
+          id: String(p.id),
+          name: p.mercado,
+          address: p.cliente,
+          lat: p.latitud,
+          lng: p.longitud,
+          visitOrder: i + 1,
+          status: 'pending' as const,
+        }))
+        setRouteData({
+          pdvCount: data.pdvs.length,
+          mochila: data.mochila,
+          tiempo_estimado: data.tiempo_estimado,
+          mapPdvs,
+        })
+        setRouteLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setRouteError(err instanceof Error ? err.message : 'Error al cargar ruta')
+        setRouteLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [selectedId, reponedores])
 
   const handleViewOnMap = useCallback((repId: string) => {
     navigate(`${ROUTES.MAPA_VIVO}?reponedor=${repId}`)
@@ -293,11 +417,9 @@ export function ReponedoresPage() {
     navigate(`${ROUTES.SIMULADOR}?source=${repId}`)
   }, [navigate])
 
-  const rows = EXACT_DATA
-
   const sorted = useMemo(() => {
-    if (!sortKey || !sortDir) return rows
-    return [...rows].sort((a, b) => {
+    if (!sortKey || !sortDir) return reponedores
+    return [...reponedores].sort((a, b) => {
       let cmp = 0
       if (sortKey === 'deviation') cmp = a.deviation - b.deviation
       else if (sortKey === 'efficiency') cmp = a.efficiency - b.efficiency
@@ -305,7 +427,7 @@ export function ReponedoresPage() {
       else cmp = a.name.localeCompare(b.name)
       return sortDir === 'asc' ? cmp : -cmp
     })
-  }, [rows, sortKey, sortDir])
+  }, [reponedores, sortKey, sortDir])
 
   const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
@@ -317,38 +439,61 @@ export function ReponedoresPage() {
 
   const selected = useMemo(() => sorted.find(r => r.id === selectedId), [sorted, selectedId])
 
-  const selectedAssignedPdvs = useMemo(() => {
-    if (!selected) return []
-    return MOCK_PDVS.filter(p => p.repId === selected.id).sort((a, b) => a.visitOrder - b.visitOrder)
-  }, [selected])
+  // KPI computed from real data (status/deviation are mock-derived but consistent)
+  const overloadedCount = useMemo(() => reponedores.filter(r => r.status === 'overloaded').length, [reponedores])
+  const avgDeviation = useMemo(() => {
+    if (reponedores.length === 0) return 0
+    const positiveOnly = reponedores.filter(r => r.deviation > 0)
+    if (positiveOnly.length === 0) return 0
+    return Math.round(positiveOnly.reduce((s, r) => s + r.deviation, 0) / positiveOnly.length)
+  }, [reponedores])
+  const bestEfficiencyRep = useMemo(() => {
+    if (reponedores.length === 0) return null
+    return reponedores.reduce((best, r) => r.efficiency > best.efficiency ? r : best)
+  }, [reponedores])
 
-  // Sparkline data
+  // Sparkline data (mock trend visuals)
   const sparkDev = [14, 15, 14, 16, 17, 16, 18]
   const sparkEff = [88, 90, 91, 92, 93, 94, 95]
-
-  // Avance mini chart
   const miniGreen = [42, 48, 52, 58, 55, 62, 68]
   const miniRed = [38, 40, 35, 32, 38, 34, 30]
 
   const microtaskData = [
-    { label: 'Estante instalado', pct: 96, color: '#16A34A' },
-    { label: 'Material colgante OK', pct: 93, color: '#2563EB' },
-    { label: 'Precios visibles', pct: 90, color: '#F59E0B' },
-    { label: 'Orden y frente', pct: 88, color: '#DC2626' },
-    { label: 'Disponibilidad stock', pct: 83, color: '#6B7280' },
+    { label: 'Estante instalado',      pct: 96, color: '#16A34A' },
+    { label: 'Material colgante OK',   pct: 93, color: '#2563EB' },
+    { label: 'Precios visibles',       pct: 90, color: '#F59E0B' },
+    { label: 'Orden y frente',         pct: 88, color: '#DC2626' },
+    { label: 'Disponibilidad stock',   pct: 83, color: '#6B7280' },
   ]
+
+  // Build compatible rep object for RedistributionModal
+  const modalRep = selected ? {
+    id: selected.id,
+    name: selected.name,
+    pdvs: routeData?.pdvCount ?? selected.pdvs,
+    completed: selected.completed,
+    deviation: selected.deviation,
+    efficiency: selected.efficiency,
+    status: selected.status,
+    color: selected.color,
+    mobility: selected.mobilityType,
+  } : null
 
   return (
     <DashboardLayout currentPage="Reponedores">
       <div className="p-6 space-y-5">
-        {/* KPI Row — exact values from spec */}
+        {/* KPI Row — counts from real data, deviation/efficiency from mock-derived */}
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-white rounded-lg border border-[#E5E7EB] shadow-sm p-4 transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 overflow-hidden">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Reponedores activos</p>
-                <p className="text-2xl font-bold text-[#2563EB] mt-0.5">23</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">• 1 inactivo</p>
+                <p className="text-2xl font-bold text-[#2563EB] mt-0.5">
+                  {loading ? '–' : reponedores.length}
+                </p>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  {loading ? '' : `• ${reponedores.length} en ruta hoy`}
+                </p>
               </div>
               <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
                 <Users className="w-5 h-5 text-[#2563EB]" />
@@ -360,8 +505,10 @@ export function ReponedoresPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Sobrecargados</p>
-                <p className="text-2xl font-bold text-[#F59E0B] mt-0.5">4</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">17% del total</p>
+                <p className="text-2xl font-bold text-[#F59E0B] mt-0.5">{loading ? '–' : overloadedCount}</p>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  {loading ? '' : `${reponedores.length > 0 ? Math.round(overloadedCount / reponedores.length * 100) : 0}% del total`}
+                </p>
               </div>
               <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-[#F59E0B]" />
@@ -373,7 +520,9 @@ export function ReponedoresPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Desvío promedio</p>
-                <p className="text-2xl font-bold text-[#DC2626] mt-0.5">+18%</p>
+                <p className="text-2xl font-bold text-[#DC2626] mt-0.5">
+                  {loading ? '–' : `+${avgDeviation}%`}
+                </p>
               </div>
               <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-[#DC2626]" />
@@ -388,8 +537,12 @@ export function ReponedoresPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wider">Mejor eficiencia POP</p>
-                <p className="text-2xl font-bold text-[#16A34A] mt-0.5">95%</p>
-                <p className="text-xs text-[#6B7280] mt-0.5">Reponedor 9</p>
+                <p className="text-2xl font-bold text-[#16A34A] mt-0.5">
+                  {loading || !bestEfficiencyRep ? '–' : `${bestEfficiencyRep.efficiency}%`}
+                </p>
+                <p className="text-xs text-[#6B7280] mt-0.5">
+                  {!loading && bestEfficiencyRep ? bestEfficiencyRep.name : ''}
+                </p>
               </div>
               <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
                 <Target className="w-5 h-5 text-[#16A34A]" />
@@ -397,6 +550,14 @@ export function ReponedoresPage() {
             </div>
           </div>
         </div>
+
+        {/* Error state */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 flex items-center gap-3 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
 
         {/* Main Content: Table + Detail Panel */}
         <div className="grid grid-cols-12 gap-5">
@@ -417,79 +578,89 @@ export function ReponedoresPage() {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#E5E7EB] bg-gray-50/50">
-                      {[
-                        { key: 'name' as SortKey, label: 'Nombre' },
-                        { key: null, label: 'PDVs' },
-                        { key: null, label: '% avance' },
-                        { key: 'deviation' as SortKey, label: 'Desviación vs plan' },
-                        { key: 'efficiency' as SortKey, label: 'Eficiencia POP' },
-                        { key: 'status' as SortKey, label: 'Estado' },
-                      ].map(col => (
-                        <th
-                          key={col.label}
-                          className={cn(
-                            'text-left px-4 py-3 text-xs font-semibold text-[#6B7280] uppercase tracking-wider',
-                            col.key && 'cursor-pointer select-none hover:text-[#111827] transition-colors'
-                          )}
-                          onClick={() => col.key && handleSort(col.key)}
-                        >
-                          <span className="flex items-center gap-1">
-                            {col.label}
-                            {col.key && sortKey === col.key && (
-                              <ArrowUpDown className={cn('w-3 h-3 transition-transform', sortDir === 'desc' && 'rotate-180')} />
+              {loading ? (
+                <div className="flex items-center justify-center h-48 gap-2 text-sm text-[#6B7280]">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Cargando reponedores…
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-[#E5E7EB] bg-gray-50/50">
+                        {[
+                          { key: 'name' as SortKey,       label: 'Nombre' },
+                          { key: null,                     label: 'PDVs' },
+                          { key: null,                     label: '% avance' },
+                          { key: 'deviation' as SortKey,  label: 'Desviación vs plan' },
+                          { key: 'efficiency' as SortKey, label: 'Eficiencia POP' },
+                          { key: 'status' as SortKey,     label: 'Estado' },
+                        ].map(col => (
+                          <th
+                            key={col.label}
+                            className={cn(
+                              'text-left px-4 py-3 text-xs font-semibold text-[#6B7280] uppercase tracking-wider',
+                              col.key && 'cursor-pointer select-none hover:text-[#111827] transition-colors'
                             )}
-                          </span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sorted.map(row => {
-                      const isSelected = row.id === selectedId
-                      return (
-                        <tr
-                          key={row.id}
-                          className={cn(
-                            'border-b border-[#E5E7EB] cursor-pointer transition-colors',
-                            isSelected ? 'bg-red-50/50' : 'hover:bg-gray-50'
-                          )}
-                          onClick={() => setSelectedId(isSelected ? null : row.id)}
-                        >
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                style={{ backgroundColor: row.color }}
-                              >
-                                {row.name.charAt(row.name.length - 1)}
-                              </div>
-                              <span className="font-semibold text-[#111827]">{row.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-[#111827]">{row.pdvs}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2.5">
-                              <ProgressBar pct={row.progressPct} height={8} />
-                              <span className="text-xs font-semibold text-[#111827] w-8 text-right">{row.progressPct}%</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3"><DeviationBadge value={row.deviation} /></td>
-                          <td className="px-4 py-3">
-                            <span className={cn('font-semibold', row.efficiency >= 80 ? 'text-[#16A34A]' : row.efficiency >= 70 ? 'text-[#F59E0B]' : 'text-[#DC2626]')}>
-                              {row.efficiency}%
+                            onClick={() => col.key && handleSort(col.key)}
+                          >
+                            <span className="flex items-center gap-1">
+                              {col.label}
+                              {col.key && sortKey === col.key && (
+                                <ArrowUpDown className={cn('w-3 h-3 transition-transform', sortDir === 'desc' && 'rotate-180')} />
+                              )}
                             </span>
-                          </td>
-                          <td className="px-4 py-3"><StatusPill status={row.status} /></td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sorted.map(row => {
+                        const isSelected = row.id === selectedId
+                        return (
+                          <tr
+                            key={row.id}
+                            className={cn(
+                              'border-b border-[#E5E7EB] cursor-pointer transition-colors',
+                              isSelected ? 'bg-red-50/50' : 'hover:bg-gray-50'
+                            )}
+                            onClick={() => setSelectedId(isSelected ? null : row.id)}
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                  style={{ backgroundColor: row.color }}
+                                >
+                                  {row.name.charAt(row.name.length - 1)}
+                                </div>
+                                <div>
+                                  <span className="font-semibold text-[#111827] block">{row.name}</span>
+                                  <span className="text-[10px] text-[#6B7280]">{row.mobilityType} · {row.velocidad} km/h</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-semibold text-[#111827]">{row.pdvs}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2.5">
+                                <ProgressBar pct={row.progressPct} height={8} />
+                                <span className="text-xs font-semibold text-[#111827] w-8 text-right">{row.progressPct}%</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3"><DeviationBadge value={row.deviation} /></td>
+                            <td className="px-4 py-3">
+                              <span className={cn('font-semibold', row.efficiency >= 80 ? 'text-[#16A34A]' : row.efficiency >= 70 ? 'text-[#F59E0B]' : 'text-[#DC2626]')}>
+                                {row.efficiency}%
+                              </span>
+                            </td>
+                            <td className="px-4 py-3"><StatusPill status={row.status} /></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
               {/* Pagination footer */}
               <div className="px-5 py-3 border-t border-[#E5E7EB] flex items-center justify-between">
@@ -507,7 +678,7 @@ export function ReponedoresPage() {
             </div>
           </div>
 
-          {/* Detail Panel — Detalle del reponedor */}
+          {/* Detail Panel */}
           {selected && (
             <div className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
@@ -522,7 +693,10 @@ export function ReponedoresPage() {
                       >
                         {selected.name.charAt(selected.name.length - 1)}
                       </div>
-                      <span className="text-xs font-semibold text-[#111827]">{selected.name}</span>
+                      <div>
+                        <span className="text-xs font-semibold text-[#111827] block leading-tight">{selected.name}</span>
+                        <span className="text-[10px] text-[#6B7280]">Sup: {selected.supervisor}</span>
+                      </div>
                       <StatusPill status={selected.status} />
                     </div>
                   </div>
@@ -535,22 +709,41 @@ export function ReponedoresPage() {
                 </div>
 
                 <div className="p-5 space-y-4">
-                  {/* Micro-Metrics Grid */}
+                  {/* Micro-Metrics Grid — mixes real (ruta-hoy) and mock-derived fields */}
                   <div className="grid grid-cols-2 gap-3">
-                    <MetricBox icon={<Store />} label="PDVs asignados" value={String(selected.pdvs)} />
-                    <MetricBox icon={<CheckCircle2 className="text-[#16A34A]" />} label="% avance" value={`${selected.progressPct}%`} valueColor="#16A34A" />
-                    <MetricBox icon={<TrendingUp className="text-[#DC2626]" />} label="Desvío vs plan" value={`${selected.deviation > 0 ? '+' : ''}${selected.deviation}%`} valueColor="#DC2626" />
-                    <MetricBox icon={<PersonStanding />} label="Movilidad" value={selected.mobility} valueColor="#16A34A" />
+                    <MetricBox
+                      icon={<Store />}
+                      label="PDVs en ruta"
+                      value={routeLoading ? '…' : routeData ? String(routeData.pdvCount) : String(selected.pdvs)}
+                    />
+                    <MetricBox
+                      icon={<Clock />}
+                      label="Tiempo estimado"
+                      value={routeLoading ? '…' : routeData ? `${routeData.tiempo_estimado} min` : '—'}
+                      valueColor="#2563EB"
+                    />
+                    <MetricBox
+                      icon={<TrendingUp className="text-[#DC2626]" />}
+                      label="Desvío vs plan"
+                      value={`${selected.deviation > 0 ? '+' : ''}${selected.deviation}%`}
+                      valueColor="#DC2626"
+                    />
+                    <MetricBox
+                      icon={<PersonStanding />}
+                      label="Movilidad"
+                      value={`${selected.mobilityType} · ${selected.velocidad} km/h`}
+                      valueColor="#16A34A"
+                    />
                   </div>
 
                   {/* Analytics Tabs */}
                   <div className="border border-[#E5E7EB] rounded-lg overflow-hidden">
                     <div className="flex border-b border-[#E5E7EB] bg-gray-50/50">
                       {[
-                        { key: 'route' as const, label: 'Ruta', icon: <Route className="w-3 h-3" /> },
-                        { key: 'trend' as const, label: 'Tendencia', icon: <BarChart3 className="w-3 h-3" /> },
+                        { key: 'route' as const,      label: 'Ruta',        icon: <Route className="w-3 h-3" /> },
+                        { key: 'trend' as const,      label: 'Tendencia',   icon: <BarChart3 className="w-3 h-3" /> },
                         { key: 'microtasks' as const, label: 'Microtareas', icon: <CheckCircle2 className="w-3 h-3" /> },
-                        { key: 'upcoming' as const, label: 'Próximos PDVs', icon: <Navigation className="w-3 h-3" /> },
+                        { key: 'upcoming' as const,   label: 'Próximos PDVs', icon: <Navigation className="w-3 h-3" /> },
                       ].map(tab => (
                         <button
                           key={tab.key}
@@ -571,11 +764,38 @@ export function ReponedoresPage() {
                     {/* Tab Content */}
                     <div className="p-3">
                       {detailTab === 'route' && (
-                        selectedAssignedPdvs.length > 0 ? (
-                          <RouteMapPreview pdvs={selectedAssignedPdvs} repName={selected.name} repColor={selected.color} />
+                        routeLoading ? (
+                          <div className="flex items-center justify-center h-[160px] gap-2 text-xs text-[#6B7280] bg-gray-50 rounded-lg border border-[#E5E7EB]">
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            Cargando ruta…
+                          </div>
+                        ) : routeError ? (
+                          <div className="flex flex-col items-center justify-center h-[160px] gap-1 text-xs text-[#DC2626] bg-red-50 rounded-lg border border-red-100">
+                            <AlertTriangle className="w-4 h-4" />
+                            {routeError}
+                          </div>
+                        ) : routeData && routeData.mapPdvs.length > 0 ? (
+                          <>
+                            <RouteMapPreview pdvs={routeData.mapPdvs} repName={selected.name} repColor={selected.color} />
+                            {/* Mochila breakdown — real data from ruta-hoy */}
+                            <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
+                              <div className="bg-gray-50 rounded p-1.5 text-center border border-[#E5E7EB]">
+                                <div className="font-semibold text-[#111827]">{routeData.mochila.marca_precios}</div>
+                                <div className="text-[#6B7280]">Marca precios</div>
+                              </div>
+                              <div className="bg-gray-50 rounded p-1.5 text-center border border-[#E5E7EB]">
+                                <div className="font-semibold text-[#111827]">{routeData.mochila.colgantes}</div>
+                                <div className="text-[#6B7280]">Colgantes</div>
+                              </div>
+                              <div className="bg-gray-50 rounded p-1.5 text-center border border-[#E5E7EB]">
+                                <div className="font-semibold text-[#111827]">{routeData.mochila.cenefas}</div>
+                                <div className="text-[#6B7280]">Cenefas</div>
+                              </div>
+                            </div>
+                          </>
                         ) : (
                           <div className="flex items-center justify-center h-[160px] text-xs text-[#6B7280] bg-gray-50 rounded-lg border border-[#E5E7EB]">
-                            Sin PDVs asignados
+                            Sin PDVs asignados hoy
                           </div>
                         )
                       )}
@@ -587,7 +807,7 @@ export function ReponedoresPage() {
                             <MiniDualChart greenData={miniGreen} redData={miniRed} />
                           </div>
                           <p className="text-[11px] text-[#6B7280] mb-2">
-                            <span className="font-semibold text-[#111827]">{selected.completed}</span> / {selected.pdvs} PDVs visitados hoy
+                            <span className="font-semibold text-[#111827]">{selected.completed}</span> / {routeData?.pdvCount ?? selected.pdvs} PDVs visitados hoy
                           </p>
                           <ProgressBar pct={selected.progressPct} height={10} />
                           <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
@@ -625,8 +845,13 @@ export function ReponedoresPage() {
                       {detailTab === 'upcoming' && (
                         <div>
                           <p className="text-xs font-bold text-[#111827] mb-2">Próximos PDVs</p>
-                          {selectedAssignedPdvs.filter(p => p.status === 'pending').slice(0, 3).length > 0 ? (
-                            selectedAssignedPdvs.filter(p => p.status === 'pending').slice(0, 3).map((pdv, i) => (
+                          {routeLoading ? (
+                            <div className="flex items-center justify-center py-4 gap-2 text-xs text-[#6B7280]">
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              Cargando…
+                            </div>
+                          ) : routeData && routeData.mapPdvs.length > 0 ? (
+                            routeData.mapPdvs.slice(0, 3).map((pdv, i) => (
                               <div key={pdv.id} className="flex items-start gap-3 py-2 border-b border-[#E5E7EB] last:border-0">
                                 <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
                                   <span className="text-[9px] font-bold text-[#6B7280]">{i + 1}</span>
@@ -643,7 +868,7 @@ export function ReponedoresPage() {
                               </div>
                             ))
                           ) : (
-                            <p className="text-xs text-[#6B7280] text-center py-3">Todos los PDVs completados</p>
+                            <p className="text-xs text-[#6B7280] text-center py-3">Sin PDVs asignados hoy</p>
                           )}
                         </div>
                       )}
@@ -675,7 +900,7 @@ export function ReponedoresPage() {
       </div>
       <RedistributionModal
         open={redistModalOpen}
-        rep={selected ?? null}
+        rep={modalRep}
         onCancel={() => setRedistModalOpen(false)}
         onSimulate={handleSimulateRedistribution}
       />

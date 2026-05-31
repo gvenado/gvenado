@@ -14,6 +14,11 @@ import {
   Split,
   Sparkles,
   AlertTriangle,
+  Clock,
+  Database,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/dashboard/layouts/DashboardLayout'
@@ -22,7 +27,7 @@ import { Toast } from '@/dashboard/components/Toast'
 import { ConfirmDialog } from '@/dashboard/components/ConfirmDialog'
 import { useSupervisor } from '@/dashboard/context/SupervisorContext'
 import { collectExportData, exportPDF, exportExcel, exportGeoJSON } from '@/dashboard/services/exportService'
-import { optimizeRoutes, type OptimizeResult } from '@/dashboard/services/simuladorService'
+import { optimizeRoutes, simulateRedistribution, type OptimizeResult } from '@/dashboard/services/simuladorService'
 import type { PDV, Reponedor } from '@/dashboard/types'
 
 function useCountUp(target: number, duration: number, active: boolean) {
@@ -44,6 +49,24 @@ function useCountUp(target: number, duration: number, active: boolean) {
   }, [active, target, duration])
 
   return value
+}
+
+// Elapsed-seconds counter shown during long optimize call
+function useElapsedSeconds(running: boolean) {
+  const [secs, setSecs] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (running) {
+      setSecs(0)
+      intervalRef.current = setInterval(() => setSecs(s => s + 1), 1000)
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [running])
+
+  return secs
 }
 
 interface SimulatorPageProps {
@@ -77,19 +100,22 @@ export function SimuladorPage(_props: SimulatorPageProps) {
     resetApplied,
   } = useSupervisor()
 
+  const [isOptimizing, setIsOptimizing] = useState(false)
   const [animating, setAnimating] = useState(false)
   const [showOptimized, setShowOptimized] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sourceRepId, setSourceRepId] = useState<string | null>(null)
   const [optimizeResult, setOptimizeResult] = useState<OptimizeResult | null>(null)
+  const [showRouteTable, setShowRouteTable] = useState(false)
+  const [isRedistributing, setIsRedistributing] = useState(false)
 
-  /* Read ?source= param from URL */
+  const elapsedSecs = useElapsedSeconds(isOptimizing)
+
   useEffect(() => {
     const source = searchParams.get('source')
-    if (source) {
-      setSourceRepId(source)
-    }
+    if (source) setSourceRepId(source)
   }, [searchParams])
+
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'error' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '', message: '',
   })
@@ -118,23 +144,32 @@ export function SimuladorPage(_props: SimulatorPageProps) {
 
   const handleOptimize = useCallback(async () => {
     if (applied) resetApplied()
+    setIsOptimizing(true)
     setAnimating(true)
     const today = new Date().toISOString().slice(0, 10)
     try {
       const result = await optimizeRoutes(today)
       setOptimizeResult(result)
-    } catch {
-      // backend offline — proceed with visual-only simulation
+      if (result.infactible) {
+        showToast('error', 'Optimización infactible', 'No se pudo encontrar una solución factible. Revisa las restricciones.')
+      } else if (result.fromCache) {
+        showToast('info', 'Resultado desde caché', 'Se usó el resultado almacenado del día de hoy.')
+      }
+    } catch (err) {
+      showToast('error', 'Error de conexión', 'No se pudo conectar al backend. Mostrando simulación visual.')
+    } finally {
+      setIsOptimizing(false)
     }
     setShowOptimized(true)
     toggleOptimized()
     setAnimating(false)
-  }, [toggleOptimized, applied, resetApplied])
+  }, [toggleOptimized, applied, resetApplied, showToast])
 
   const resetSimulation = useCallback(() => {
     setAnimating(true)
     setTimeout(() => {
       setShowOptimized(false)
+      setShowRouteTable(false)
       if (optimized) toggleOptimized()
       setTimeout(() => setAnimating(false), 600)
     }, 400)
@@ -145,27 +180,67 @@ export function SimuladorPage(_props: SimulatorPageProps) {
     setConfirmOpen(true)
   }, [showOptimized, applied])
 
-  const handleConfirmApply = useCallback(() => {
+  const handleConfirmApply = useCallback(async () => {
     setConfirmOpen(false)
-    applyOptimized()
-    showToast('success', 'Redistribución aplicada correctamente', 'El plan de redistribución ha sido programado para el próximo ciclo operativo.')
-  }, [applyOptimized, showToast])
+    setIsRedistributing(true)
+    const today = new Date().toISOString().slice(0, 10)
+
+    // Determine reponedor_ausente_id: sourceRepId → most-loaded from optimize → first reponedor
+    let ausenteId: number = optimizeResult?.reponedorMasCargadoId ?? 0
+    if (sourceRepId) {
+      const parsed = Number(sourceRepId)
+      if (!isNaN(parsed) && parsed > 0) {
+        ausenteId = parsed
+      } else {
+        const matched = reponedores.find(r =>
+          r.name.toLowerCase().includes(sourceRepId.toLowerCase())
+        )
+        if (matched) ausenteId = Number(matched.id)
+      }
+    }
+    if (!ausenteId && reponedores.length > 0) {
+      ausenteId = Number(reponedores[0].id)
+    }
+
+    try {
+      const result = await simulateRedistribution(ausenteId, today)
+      applyOptimized()
+      showToast(
+        'success',
+        `Redistribución aplicada — ${result.pdvsRedistribuidos} PDVs`,
+        `${result.reponedoresAfectados} reponedores afectados. ${result.aviso}`
+      )
+    } catch {
+      // Apply locally even if backend fails
+      applyOptimized()
+      showToast('info', 'Redistribución aplicada localmente', 'No se pudo confirmar con el servidor. El plan se aplicará en el próximo ciclo.')
+    } finally {
+      setIsRedistributing(false)
+    }
+  }, [applyOptimized, showToast, optimizeResult, sourceRepId, reponedores])
 
   const handleCancelApply = useCallback(() => {
     setConfirmOpen(false)
   }, [])
 
   const handleExport = useCallback((format: string) => {
-    const kpiData = [
-      { label: 'Km ahorrados', value: '-23%' },
-      { label: 'Reponedores sobrecargados', value: '4' },
-      { label: 'Cobertura de canal', value: '100%' },
-      { label: 'Tiempo recuperado', value: '4h 20m' },
-    ]
+    const kpiData = optimizeResult
+      ? [
+          { label: 'Km totales', value: `${optimizeResult.totalKm.toFixed(0)} km` },
+          { label: 'PDVs asignados', value: String(optimizeResult.pdvsAsignados) },
+          { label: 'Reponedores', value: String(optimizeResult.reponedoresUsados) },
+          { label: 'Max tiempo ruta', value: `${optimizeResult.maxTiempoRutaMin} min` },
+        ]
+      : [
+          { label: 'Km ahorrados', value: '-23%' },
+          { label: 'Reponedores sobrecargados', value: '4' },
+          { label: 'Cobertura de canal', value: '100%' },
+          { label: 'Tiempo recuperado', value: '4h 20m' },
+        ]
     const impactData = [
-      { label: 'PDVs reasignados', value: '12' },
-      { label: 'Menos distancia recorrida', value: '23%' },
-      { label: 'Sobrecargas resueltas', value: '4' },
+      { label: 'PDVs reasignados', value: String(optimizeResult?.pdvsAsignados ?? 12) },
+      { label: 'Km totales', value: String(optimizeResult?.totalKm.toFixed(0) ?? '—') },
+      { label: 'Reponedores en ruta', value: String(optimizeResult?.reponedoresUsados ?? '—') },
       { label: 'Cobertura de canal', value: '100%' },
     ]
     const reassignments = [
@@ -200,7 +275,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
     } catch {
       showToast('error', 'Error al exportar', 'No se pudo generar el archivo solicitado.')
     }
-  }, [optimizedRoutes, displayPdvs, showToast])
+  }, [optimizedRoutes, displayPdvs, showToast, optimizeResult])
 
   return (
     <DashboardLayout currentPage="Simulador">
@@ -225,7 +300,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               {showOptimized ? (
                 <button
                   onClick={resetSimulation}
-                  disabled={animating}
+                  disabled={animating || isOptimizing}
                   className="px-4 py-2 bg-white border border-[#E5E7EB] text-[#111827] rounded-lg text-xs font-semibold hover:bg-gray-50 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <RefreshCw className={cn('w-3.5 h-3.5', animating && 'animate-spin')} />
@@ -234,35 +309,71 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               ) : (
                 <button
                   onClick={handleOptimize}
-                  disabled={animating}
+                  disabled={isOptimizing}
                   className="px-5 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow-md disabled:opacity-50"
                 >
-                  {animating ? (
+                  {isOptimizing ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                   ) : (
                     <Zap className="w-3.5 h-3.5" />
                   )}
-                  {animating ? 'Optimizando...' : 'Optimizar redistribución'}
+                  {isOptimizing ? `Optimizando… ${elapsedSecs}s` : 'Optimizar redistribución'}
                 </button>
               )}
 
-              <div className="bg-[#FEF2F2] rounded-lg px-3 py-2 max-w-[200px] border border-[#FECACA]">
+              <div className="bg-[#FEF2F2] rounded-lg px-3 py-2 max-w-[220px] border border-[#FECACA]">
                 <div className="flex items-center gap-1 text-[#DC2626]">
                   <Sparkles className="w-3 h-3" />
                   <span className="text-[9px] font-semibold uppercase tracking-wider">Informe IA</span>
+                  {optimizeResult?.fromCache && (
+                    <span className="ml-auto flex items-center gap-0.5 text-[#6B7280] text-[8px] font-medium">
+                      <Database className="w-2.5 h-2.5" />
+                      caché
+                    </span>
+                  )}
                 </div>
                 <p className="text-[10px] text-[#991B1B] mt-0.5 leading-snug">
                   {optimizeResult
-                    ? `${optimizeResult.pdvsAsignados} PDVs optimizados. ${optimizeResult.totalKm.toFixed(0)} km en ${optimizeResult.reponedoresUsados} rutas. CV carga: ${(optimizeResult.balanceCarga.coeficienteVariacion * 100).toFixed(1)}%`
+                    ? `${optimizeResult.pdvsAsignados} PDVs · ${optimizeResult.totalKm.toFixed(0)} km · ${optimizeResult.reponedoresUsados} rutas · CV ${(optimizeResult.balanceCarga.coeficienteVariacion * 100).toFixed(1)}%`
                     : 'Ejecuta la optimización para ver el análisis de rutas del día.'}
                 </p>
               </div>
             </div>
           </div>
 
-          {animating && (
-            <div className="mt-3 h-1 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-[#DC2626] rounded-full animate-pulse" style={{ width: '60%' }} />
+          {/* Loading progress */}
+          {isOptimizing && (
+            <div className="mt-3 space-y-1.5">
+              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-[#DC2626] rounded-full animate-pulse w-full" />
+              </div>
+              <p className="text-[10px] text-[#6B7280] flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                La primera optimización puede tardar 25–50 segundos. Las siguientes son instantáneas.
+              </p>
+            </div>
+          )}
+
+          {/* Infactible warning */}
+          {optimizeResult?.infactible && (
+            <div className="mt-3 flex items-center gap-2 bg-[#FEF2F2] border border-[#FECACA] rounded-lg px-3 py-2">
+              <AlertTriangle className="w-4 h-4 text-[#DC2626] shrink-0" />
+              <p className="text-xs text-[#991B1B] font-medium">
+                Solución infactible: no se pudo asignar todos los PDVs dentro de las restricciones.
+                {optimizeResult.pdvsSinAsignar.length > 0 && ` ${optimizeResult.pdvsSinAsignar.length} PDVs sin asignar.`}
+              </p>
+            </div>
+          )}
+
+          {/* Notes from backend */}
+          {optimizeResult?.notas && optimizeResult.notas.length > 0 && (
+            <div className="mt-2 flex items-start gap-2 bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-2">
+              <Info className="w-3.5 h-3.5 text-[#2563EB] shrink-0 mt-0.5" />
+              <ul className="text-[10px] text-[#1E40AF] space-y-0.5">
+                {optimizeResult.notas.map((nota, i) => (
+                  <li key={i}>{nota}</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
@@ -301,7 +412,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                     reponedorId: p.reponedorId,
                   }))}
                   routes={currentRoutes}
-                  className={cn('transition-all duration-700', animating && 'opacity-50 scale-[0.98]')}
+                  className={cn('transition-all duration-700', (animating || isOptimizing) && 'opacity-50 scale-[0.98]')}
                 />
               </div>
               <div className="col-span-5 p-2.5 space-y-1">
@@ -506,19 +617,27 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 {showOptimized ? 'Optimización aplicada correctamente' : 'Ejecuta el simulador para ver el impacto proyectado'}
               </p>
             </div>
-            {showOptimized && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] flex items-center gap-1">
-                <CheckCircle2 className="w-2.5 h-2.5" />
-                Optimizado
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {optimizeResult?.fromCache && showOptimized && (
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] flex items-center gap-1">
+                  <Database className="w-2.5 h-2.5" />
+                  Desde caché
+                </span>
+              )}
+              {showOptimized && (
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] flex items-center gap-1">
+                  <CheckCircle2 className="w-2.5 h-2.5" />
+                  Optimizado
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-6 gap-3">
             <ImpactCard
               icon={<GitCompare className="w-4 h-4" />}
               value={showOptimized ? String(reassignedCount) : '—'}
-              label="PDVs optimizados"
+              label="PDVs asignados"
               active={showOptimized}
             />
             <ImpactCard
@@ -539,6 +658,22 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               negative={!showOptimized}
             />
             <ImpactCard
+              icon={<Clock className="w-4 h-4" />}
+              value={showOptimized
+                ? optimizeResult ? `${optimizeResult.maxTiempoRutaMin} min` : '—'
+                : '—'}
+              label="Max tiempo ruta"
+              active={showOptimized}
+            />
+            <ImpactCard
+              icon={<BarChart3 className="w-4 h-4" />}
+              value={showOptimized
+                ? optimizeResult ? `${(optimizeResult.balanceCarga.coeficienteVariacion * 100).toFixed(1)}%` : '—'
+                : '—'}
+              label="CV balance carga"
+              active={showOptimized}
+            />
+            <ImpactCard
               icon={<Target className="w-4 h-4" />}
               value={showOptimized
                 ? optimizeResult
@@ -551,11 +686,74 @@ export function SimuladorPage(_props: SimulatorPageProps) {
           </div>
         </div>
 
+        {/* ===== ROUTE-BY-REPONEDOR TABLE ===== */}
+        {showOptimized && optimizeResult && optimizeResult.rutasPorReponedor.length > 0 && (
+          <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+            <button
+              onClick={() => setShowRouteTable(v => !v)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-[#111827]">Detalle por reponedor</h2>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-[#6B7280]">
+                  {optimizeResult.rutasPorReponedor.length} rutas
+                </span>
+              </div>
+              {showRouteTable
+                ? <ChevronUp className="w-4 h-4 text-[#6B7280]" />
+                : <ChevronDown className="w-4 h-4 text-[#6B7280]" />}
+            </button>
+
+            {showRouteTable && (
+              <div className="overflow-x-auto border-t border-[#E5E7EB]">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-[#E5E7EB]">
+                      <th className="px-4 py-2 text-left text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider">Reponedor</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider">PDVs</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider">Km</th>
+                      <th className="px-4 py-2 text-right text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider">Tiempo (min)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#F3F4F6]">
+                    {optimizeResult.rutasPorReponedor
+                      .slice()
+                      .sort((a, b) => b.totalTiempoMin - a.totalTiempoMin)
+                      .map(r => (
+                        <tr key={r.reponedorId} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-2 text-[#111827] font-medium">{r.nombre}</td>
+                          <td className="px-4 py-2 text-right text-[#374151]">{r.cantidadPdvs}</td>
+                          <td className="px-4 py-2 text-right text-[#374151]">{r.totalKm.toFixed(1)}</td>
+                          <td className="px-4 py-2 text-right">
+                            <span className={cn(
+                              'font-medium',
+                              r.totalTiempoMin >= 400 ? 'text-[#DC2626]' : r.totalTiempoMin >= 350 ? 'text-[#F59E0B]' : 'text-[#16A34A]'
+                            )}>
+                              {r.totalTiempoMin}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-gray-50 border-t border-[#E5E7EB] font-semibold">
+                      <td className="px-4 py-2 text-[10px] text-[#6B7280]">Total</td>
+                      <td className="px-4 py-2 text-right text-[#111827]">{optimizeResult.pdvsAsignados}</td>
+                      <td className="px-4 py-2 text-right text-[#111827]">{optimizeResult.totalKm.toFixed(1)}</td>
+                      <td className="px-4 py-2 text-right text-[#111827]">{optimizeResult.totalTiempoMin}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ===== FINAL ACTIONS ===== */}
         <div className="flex justify-center gap-3 pb-2">
           <button
             onClick={handleApplyRedistribution}
-            disabled={!showOptimized || applied || animating}
+            disabled={!showOptimized || applied || animating || isRedistributing}
             className={cn(
               'px-6 py-2.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-2 shadow-sm',
               applied
@@ -563,13 +761,18 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 : showOptimized
                   ? 'bg-[#DC2626] hover:bg-[#B91C1C] text-white hover:shadow-md active:scale-[0.98]'
                   : 'bg-gray-200 text-[#9CA3AF] cursor-default',
-              animating && 'opacity-50 cursor-wait'
+              (animating || isRedistributing) && 'opacity-50 cursor-wait'
             )}
           >
             {applied ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
                 Redistribución aplicada
+              </>
+            ) : isRedistributing ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Aplicando…
               </>
             ) : (
               <>
@@ -602,7 +805,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
       <ConfirmDialog
         open={confirmOpen}
         title="Aplicar plan de redistribución"
-        message="¿Estás seguro de aplicar la redistribución propuesta? Esta operación actualizará las asignaciones de los reponedores para el próximo ciclo operativo."
+        message="¿Estás seguro de aplicar la redistribución propuesta? Esta operación consultará el servidor para redistribuir los PDVs del reponedor más cargado."
         confirmLabel="Confirmar"
         cancelLabel="Cancelar"
         onConfirm={handleConfirmApply}
