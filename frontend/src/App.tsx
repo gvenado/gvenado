@@ -1,8 +1,7 @@
 import { Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { dashboardRoutes } from '@/dashboard'
 import { ROUTES } from '@/dashboard/utils/constants'
-import { SimuladorPage } from '@/dashboard/pages/SimuladorPage'
 import DemoControllerPage from './demo/DemoControllerPage'
 
 function DashboardFallback() {
@@ -21,13 +20,10 @@ function App() {
     <Suspense fallback={<DashboardFallback />}>
       <Routes>
         <Route path="/demo-control" element={<DemoControllerPage />} />
-        <Route path={ROUTES.SIMULADOR} element={<SimuladorPage />} />
-        {dashboardRoutes
-          .filter(r => r.path !== ROUTES.SIMULADOR)
-          .map(route => (
-            <Route key={route.path} path={route.path} element={route.element} />
-          ))}
-        <Route path="*" element={<SimuladorPage />} />
+        {dashboardRoutes.map(route => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+        <Route path="*" element={<Navigate to={ROUTES.SIMULADOR} replace />} />
       </Routes>
     </Suspense>
   )

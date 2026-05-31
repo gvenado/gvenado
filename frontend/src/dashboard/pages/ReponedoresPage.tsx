@@ -493,15 +493,13 @@ export function ReponedoresPage() {
 
               {/* Pagination footer */}
               <div className="px-5 py-3 border-t border-[#E5E7EB] flex items-center justify-between">
-                <span className="text-xs text-[#6B7280]">1-10 de 23</span>
+                <span className="text-xs text-[#6B7280]">1-{sorted.length} de {sorted.length}</span>
                 <div className="flex items-center gap-1">
-                  <button className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 text-xs">
+                  <button disabled className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#D1D5DB] text-xs cursor-default">
                     <ChevronLeft className="w-3 h-3" />
                   </button>
                   <button className="w-7 h-7 rounded-md bg-[#DC2626] text-white flex items-center justify-center text-xs font-bold">1</button>
-                  <button className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 text-xs">2</button>
-                  <button className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 text-xs">3</button>
-                  <button className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#6B7280] hover:bg-gray-50 text-xs">
+                  <button disabled className="w-7 h-7 rounded-md border border-[#E5E7EB] flex items-center justify-center text-[#D1D5DB] text-xs cursor-default">
                     <ChevronRight className="w-3 h-3" />
                   </button>
                 </div>

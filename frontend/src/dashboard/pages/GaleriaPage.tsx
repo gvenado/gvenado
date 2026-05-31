@@ -25,7 +25,7 @@ function todayStr(): string {
 
 export function GaleriaPage() {
   const [filterReplenisher, setFilterReplenisher] = useState('all')
-  const [filterDate, setFilterDate] = useState(todayStr())
+  const [filterDate, setFilterDate] = useState('')
   const [filterStatus, setFilterStatus] = useState('all')
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceCardData | null>(null)
   const [rankingOpen, setRankingOpen] = useState(false)

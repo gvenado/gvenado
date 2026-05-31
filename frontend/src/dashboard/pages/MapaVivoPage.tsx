@@ -458,7 +458,7 @@ export function MapaVivoPage() {
                       <span className="font-semibold text-[#111827]">{selectedPdv.estimatedTime}</span>
                     </div>
                   </div>
-                  <button className="w-full mt-3 px-4 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm">
+                  <button disabled className="w-full mt-3 px-4 py-2 bg-gray-100 text-[#9CA3AF] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed" title="Próximamente">
                     Ver historial PDV
                     <ChevronRight className="w-3 h-3" />
                   </button>
@@ -509,7 +509,7 @@ export function MapaVivoPage() {
                       <span className="font-semibold text-[#111827]">{selectedRep.mobilityProfile}</span>
                     </div>
                   </div>
-                  <button className="w-full mt-3 px-4 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm">
+                  <button disabled className="w-full mt-3 px-4 py-2 bg-gray-100 text-[#9CA3AF] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed" title="Próximamente">
                     Ver ruta completa
                     <ChevronRight className="w-3 h-3" />
                   </button>

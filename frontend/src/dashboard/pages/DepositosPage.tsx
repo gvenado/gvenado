@@ -127,15 +127,15 @@ export function DepositosPage() {
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white rounded-lg border border-[#E5E7EB] p-3">
-              <p className="text-[11px] font-semibold text-[#111827]">Depósito Sur</p>
+              <p className="text-[11px] font-semibold text-[#111827]">Material Marca Precios</p>
               <p className="text-[10px] text-[#6B7280] mt-0.5">Stock por debajo del 30% en SKUs de alta rotación. Considerar reabastecimiento urgente.</p>
             </div>
             <div className="bg-white rounded-lg border border-[#E5E7EB] p-3">
-              <p className="text-[11px] font-semibold text-[#111827]">Depósito Norte</p>
-              <p className="text-[10px] text-[#6B7280] mt-0.5">Excedente de 15% en material POP. Sugerir redistribución a depósitos con alerta.</p>
+              <p className="text-[11px] font-semibold text-[#111827]">Material Colgantes</p>
+              <p className="text-[10px] text-[#6B7280] mt-0.5">Nivel de consumo diario estable. Verificar rotación con reponedores de zona norte.</p>
             </div>
             <div className="bg-white rounded-lg border border-[#E5E7EB] p-3">
-              <p className="text-[11px] font-semibold text-[#111827]">Depósito Central</p>
+              <p className="text-[11px] font-semibold text-[#111827]">Material Cenefas</p>
               <p className="text-[10px] text-[#6B7280] mt-0.5">Rotación de inventario dentro del rango óptimo. Sin acciones requeridas.</p>
             </div>
           </div>
