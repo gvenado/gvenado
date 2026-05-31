@@ -6,13 +6,16 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
-import { fetchPdvById, fetchMicrotasks } from '@/services/api'
+import { fetchMicrotasks, fetchRutaHoy, createVisita } from '@/services/api'
 import { getChecklistRoute, CATEGORY_BADGES } from '@/constants'
 import type { PDV } from '@/data/mockData'
 import type { MicroTask } from '@/types'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { ErrorState } from '@/components/ErrorState'
 import { MobileLayout } from '@/layouts/MobileLayout'
+
+const DEFAULT_LAT = -16.5
+const DEFAULT_LON = -68.15
 
 const markerIcon = L.divIcon({
   className: 'bg-transparent',
@@ -24,29 +27,39 @@ const markerIcon = L.divIcon({
 export function PDVActualPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { reponedor } = useReponedor()
+  const { reponedor, rutaHoy, setRutaHoy } = useReponedor()
+
+  const pdvId = id ? parseInt(id, 10) : null
 
   const [pdv, setPdv] = useState<PDV | null>(null)
   const [tasks, setTasks] = useState<MicroTask[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
 
   useEffect(() => {
-    if (!id) return
+    if (pdvId == null || !reponedor) return
     let cancelled = false
     setIsLoading(true)
     setError(null)
 
-    Promise.all([
-      fetchPdvById(id),
-      fetchMicrotasks(),
-    ]).then(([pdvData, taskData]) => {
+    async function load() {
+      let ruta = rutaHoy
+      if (!ruta) {
+        // Re-fetch route if context was cleared (e.g., page reload)
+        ruta = await fetchRutaHoy(reponedor!.id)
+        if (!cancelled) setRutaHoy(ruta)
+      }
+      const foundPdv = ruta.pdvs.find(p => p.id === pdvId) ?? null
+      const taskData = await fetchMicrotasks()
       if (!cancelled) {
-        setPdv(pdvData)
+        setPdv(foundPdv)
         setTasks(taskData)
         setIsLoading(false)
       }
-    }).catch(() => {
+    }
+
+    load().catch(() => {
       if (!cancelled) {
         setError('No se pudo cargar la información del PDV.')
         setIsLoading(false)
@@ -54,7 +67,7 @@ export function PDVActualPage() {
     })
 
     return () => { cancelled = true }
-  }, [id])
+  }, [pdvId, reponedor?.id])
 
   if (!reponedor) return <LoadingScreen message="Verificando sesión..." />
 
@@ -75,6 +88,21 @@ export function PDVActualPage() {
     )
   }
 
+  const handleStartVisit = async () => {
+    if (!pdv || !reponedor || isStarting) return
+    setIsStarting(true)
+    try {
+      const visitaId = await createVisita(pdv.id, reponedor.id)
+      navigate(getChecklistRoute(String(pdv.id)), { state: { visitaId } })
+    } catch {
+      // Backend offline — navigate without visit record
+      navigate(getChecklistRoute(String(pdv.id)))
+    }
+  }
+
+  const lat = pdv?.latitud ?? DEFAULT_LAT
+  const lon = pdv?.longitud ?? DEFAULT_LON
+
   return (
     <MobileLayout
       header={
@@ -90,16 +118,24 @@ export function PDVActualPage() {
       bottomCta={
         <button
           type="button"
-          onClick={() => id && navigate(getChecklistRoute(id))}
-          disabled={!pdv || isLoading}
+          onClick={handleStartVisit}
+          disabled={!pdv || isLoading || isStarting}
           className={cn(
             'w-full h-12 rounded-xl flex items-center justify-center gap-2 text-white text-sm font-bold transition-all',
-            !pdv || isLoading
+            !pdv || isLoading || isStarting
               ? 'bg-[#DC2626]/40 cursor-not-allowed'
               : 'bg-[#DC2626] active:bg-[#B91C1C] shadow-sm shadow-red-200',
           )}
         >
-          Empezar visita
+          {isStarting ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+              Registrando visita...
+            </>
+          ) : 'Empezar visita'}
         </button>
       }
     >
@@ -125,7 +161,7 @@ export function PDVActualPage() {
         <>
           <div className="rounded-xl overflow-hidden border border-[#E2E8F0] shadow-sm h-[140px]">
             <MapContainer
-              center={[-16.5, -68.15]}
+              center={[lat, lon]}
               zoom={15}
               scrollWheelZoom={false}
               dragging={false}
@@ -136,7 +172,7 @@ export function PDVActualPage() {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              <Marker position={[-16.5, -68.15]} icon={markerIcon} />
+              <Marker position={[lat, lon]} icon={markerIcon} />
             </MapContainer>
           </div>
 

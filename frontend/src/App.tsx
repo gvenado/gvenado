@@ -12,7 +12,6 @@ import { PerfilPage } from '@/pages/PerfilPage'
 import { HistorialPage } from '@/pages/HistorialPage'
 import { ConfigPage } from '@/pages/ConfigPage'
 import { useReponedor } from '@/context/ReponedorContext'
-import { MOCK_RUTA_HOY } from '@/data/mockData'
 
 function DashboardFallback() {
   return (
@@ -34,8 +33,9 @@ function ProtectedReponedorRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PdvActualRedirect() {
-  const firstId = MOCK_RUTA_HOY.pdvs[0]?.id
-  return <Navigate to={`/app/pdv/${firstId}`} replace />
+  const { rutaHoy } = useReponedor()
+  const firstId = rutaHoy?.pdvs[0]?.id
+  return <Navigate to={firstId != null ? `/app/pdv/${firstId}` : '/app/ruta-hoy'} replace />
 }
 
 function App() {

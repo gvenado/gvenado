@@ -1,42 +1,110 @@
-import { MOCK_RUTA_HOY, MOCK_REPONEDORES, simulateApiCall } from '@/data/mockData'
+import { api } from '@/api/client'
+import type { BackendReponedor, BackendPDV, BackendRutaHoy } from '@/api/client'
 import type { RutaHoy, PDV, Reponedor } from '@/data/mockData'
 import { MOCK_MICROTASKS } from '@/constants'
 import type { MicroTask, DaySummary } from '@/types'
 
-export async function fetchRutaHoy(): Promise<RutaHoy> {
-  return simulateApiCall(MOCK_RUTA_HOY, 1000)
+function todayISODate(): string {
+  return new Date().toISOString().split('T')[0]
 }
 
-export async function fetchPdvById(id: string): Promise<PDV | null> {
-  const pdv = MOCK_RUTA_HOY.pdvs.find(p => p.id === id)
-  return simulateApiCall(pdv ?? null, 500)
+function mapReponedor(r: BackendReponedor): Reponedor {
+  return {
+    id: r.id,
+    nombre: r.nombre,
+    supervisor: r.supervisor?.nombre ?? '—',
+  }
 }
 
-export async function fetchMicrotasks(): Promise<MicroTask[]> {
-  return simulateApiCall(MOCK_MICROTASKS, 300)
+function mapPDV(p: BackendPDV): PDV {
+  return {
+    id: p.id,
+    name: p.mercado,
+    category: p.categoria,
+    address: p.cliente,
+    duration: `${p.visita_minutos} min`,
+    latitud: p.latitud,
+    longitud: p.longitud,
+  }
+}
+
+function mapRutaHoy(r: BackendRutaHoy): RutaHoy {
+  return {
+    mochila: {
+      marcaPrecios: r.mochila.marca_precios,
+      colgantes: r.mochila.colgantes,
+      cenefas: r.mochila.cenefas,
+    },
+    pdvs: r.pdvs.map(mapPDV),
+    tiempo_estimado: r.tiempo_estimado,
+  }
+}
+
+export async function fetchRutaHoy(reponedorId: number): Promise<RutaHoy> {
+  const data = await api.getRutaHoy(reponedorId, todayISODate())
+  return mapRutaHoy(data)
 }
 
 export async function fetchReponedores(): Promise<Reponedor[]> {
-  return simulateApiCall(MOCK_REPONEDORES, 300)
+  const data = await api.getReponedores()
+  return data.map(mapReponedor)
 }
 
+export async function fetchMicrotasks(): Promise<MicroTask[]> {
+  return MOCK_MICROTASKS
+}
+
+// Photo analysis requires a real file; photo capture not yet implemented.
 export async function analyzePhoto(_before: string, _after: string): Promise<string> {
-  return simulateApiCall('✓ Detectamos 7 caras de Frussion. POP cenefa instalado correctamente.', 1500)
+  return '✓ Detectamos 7 caras de Frussion. POP cenefa instalado correctamente.'
 }
 
-export async function fetchDaySummary(): Promise<DaySummary> {
-  return simulateApiCall({
-    pdvsCompletados: 5,
-    totalPdvs: 5,
-    tiempoTrabajado: '6h 12min',
-    eficienciaPOP: 92,
-    facesGanadas: 43,
-    microTareasCompletadas: 25,
-    totalMicroTareas: 25,
-    popUsado: { marcaPrecios: 18, colgantes: 12, cenefas: 8 },
-    popPlanificado: { marcaPrecios: 24, colgantes: 18, cenefas: 12 },
-    materialRestante: { marcaPrecios: 6, colgantes: 6, cenefas: 4 },
-    posicionSemanal: 3,
-    totalReponedores: 12,
-  }, 800)
+export async function fetchDaySummary(reponedorId?: number): Promise<DaySummary> {
+  try {
+    if (reponedorId !== undefined) {
+      const visits = await api.getVisitasHoy(todayISODate(), reponedorId)
+      const completed = visits.filter(v => v.estado === 'completada').length
+      const total = visits.length
+      return {
+        pdvsCompletados: completed,
+        totalPdvs: total,
+        tiempoTrabajado: '—',
+        eficienciaPOP: total > 0 ? Math.round((completed / total) * 100) : 0,
+        facesGanadas: 0,
+        microTareasCompletadas: 0,
+        totalMicroTareas: 0,
+        popUsado: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+        popPlanificado: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+        materialRestante: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+        posicionSemanal: 0,
+        totalReponedores: 0,
+      }
+    }
+  } catch {
+    // fall through to empty summary
+  }
+  return {
+    pdvsCompletados: 0,
+    totalPdvs: 0,
+    tiempoTrabajado: '—',
+    eficienciaPOP: 0,
+    facesGanadas: 0,
+    microTareasCompletadas: 0,
+    totalMicroTareas: 0,
+    popUsado: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+    popPlanificado: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+    materialRestante: { marcaPrecios: 0, colgantes: 0, cenefas: 0 },
+    posicionSemanal: 0,
+    totalReponedores: 0,
+  }
+}
+
+export async function createVisita(pdvId: number, reponedorId: number): Promise<number> {
+  const visita = await api.createVisita({
+    pdv_id: pdvId,
+    reponedor_id: reponedorId,
+    fecha: todayISODate(),
+    hora_inicio: new Date().toISOString().replace('Z', ''),
+  })
+  return visita.id
 }

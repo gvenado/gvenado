@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Check, Camera, ChevronLeft, ShoppingBag, Tags, Ticket, Layout, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
-import { fetchPdvById, fetchMicrotasks, analyzePhoto } from '@/services/api'
-import { MOCK_RUTA_HOY } from '@/data/mockData'
+import { fetchMicrotasks, fetchRutaHoy, analyzePhoto } from '@/services/api'
 import type { PDV, Mochila } from '@/data/mockData'
 import type { MicroTask, PhotoEvidence } from '@/types'
 import { useTimer } from '@/hooks/useTimer'
@@ -12,18 +11,13 @@ import { LoadingScreen } from '@/components/LoadingScreen'
 import { ErrorState } from '@/components/ErrorState'
 import { BottomNav } from '@/components/BottomNav'
 
-const INITIAL_MOCHILA: Pick<Mochila, 'marcaPrecios' | 'colgantes' | 'cenefas'> = {
-  marcaPrecios: MOCK_RUTA_HOY.mochila.marcaPrecios,
-  colgantes: MOCK_RUTA_HOY.mochila.colgantes,
-  cenefas: MOCK_RUTA_HOY.mochila.cenefas,
-}
-
-function MochilaChip({ icon: Icon, label, count, percentage }: {
+function MochilaChip({ icon: Icon, label, count, initial }: {
   icon: typeof Tags
   label: string
   count: number
-  percentage: number
+  initial: number
 }) {
+  const percentage = initial > 0 ? (count / initial) * 100 : 0
   const color = percentage <= 0
     ? 'bg-[#DC2626] text-white border-[#DC2626]'
     : percentage < 30
@@ -42,8 +36,12 @@ function MochilaChip({ icon: Icon, label, count, percentage }: {
 export function ChecklistPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { reponedor } = useReponedor()
+  const location = useLocation()
+  const { reponedor, rutaHoy, setRutaHoy } = useReponedor()
   const timer = useTimer()
+
+  const pdvId = id ? parseInt(id, 10) : null
+  const visitaId = (location.state as { visitaId?: number } | null)?.visitaId
 
   const [pdv, setPdv] = useState<PDV | null>(null)
   const [tasks, setTasks] = useState<MicroTask[]>([])
@@ -53,7 +51,13 @@ export function ChecklistPage() {
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0)
   const [completedTasks, setCompletedTasks] = useState<Set<number>>(new Set())
   const [numericValues, setNumericValues] = useState<Record<number, number>>({})
-  const [mochilaRestante, setMochilaRestante] = useState(INITIAL_MOCHILA)
+
+  const [initialMochila, setInitialMochila] = useState<Pick<Mochila, 'marcaPrecios' | 'colgantes' | 'cenefas'>>({
+    marcaPrecios: 0,
+    colgantes: 0,
+    cenefas: 0,
+  })
+  const [mochilaRestante, setMochilaRestante] = useState({ marcaPrecios: 0, colgantes: 0, cenefas: 0 })
   const [mochilaUsados, setMochilaUsados] = useState({ marcaPrecios: 0, colgantes: 0, cenefas: 0 })
   const [photoEvidence, setPhotoEvidence] = useState<PhotoEvidence>({
     before: null,
@@ -64,21 +68,30 @@ export function ChecklistPage() {
   })
 
   useEffect(() => {
-    if (!id) return
+    if (pdvId == null || !reponedor) return
     let cancelled = false
     setIsLoading(true)
     setError(null)
 
-    Promise.all([
-      fetchPdvById(id),
-      fetchMicrotasks(),
-    ]).then(([pdvData, taskData]) => {
+    async function load() {
+      let ruta = rutaHoy
+      if (!ruta) {
+        ruta = await fetchRutaHoy(reponedor!.id)
+        if (!cancelled) setRutaHoy(ruta)
+      }
+      const foundPdv = ruta.pdvs.find(p => p.id === pdvId) ?? null
+      const taskData = await fetchMicrotasks()
       if (!cancelled) {
-        setPdv(pdvData)
+        setPdv(foundPdv)
         setTasks(taskData)
+        const m = ruta.mochila
+        setInitialMochila({ marcaPrecios: m.marcaPrecios, colgantes: m.colgantes, cenefas: m.cenefas })
+        setMochilaRestante({ marcaPrecios: m.marcaPrecios, colgantes: m.colgantes, cenefas: m.cenefas })
         setIsLoading(false)
       }
-    }).catch(() => {
+    }
+
+    load().catch(() => {
       if (!cancelled) {
         setError('No se pudo cargar la información.')
         setIsLoading(false)
@@ -86,7 +99,7 @@ export function ChecklistPage() {
     })
 
     return () => { cancelled = true }
-  }, [id])
+  }, [pdvId, reponedor?.id])
 
   useEffect(() => {
     if (!isLoading && pdv) {
@@ -175,6 +188,9 @@ export function ChecklistPage() {
 
   const progressPercent = tasks.length > 0 ? Math.round((completedTasks.size / tasks.length) * 100) : 0
 
+  // suppress unused-var warning for visitaId — it will be used when photo upload is wired
+  void visitaId
+
   return (
     <div className="min-h-dvh bg-[#0F172A] flex justify-center">
       <div className="w-full max-w-[375px] min-h-dvh bg-[#F8FAFC] flex flex-col">
@@ -231,19 +247,19 @@ export function ChecklistPage() {
                     icon={Tags}
                     label="MP"
                     count={mochilaRestante.marcaPrecios}
-                    percentage={(mochilaRestante.marcaPrecios / INITIAL_MOCHILA.marcaPrecios) * 100}
+                    initial={initialMochila.marcaPrecios}
                   />
                   <MochilaChip
                     icon={Ticket}
                     label="Colg"
                     count={mochilaRestante.colgantes}
-                    percentage={(mochilaRestante.colgantes / INITIAL_MOCHILA.colgantes) * 100}
+                    initial={initialMochila.colgantes}
                   />
                   <MochilaChip
                     icon={Layout}
                     label="Cen"
                     count={mochilaRestante.cenefas}
-                    percentage={(mochilaRestante.cenefas / INITIAL_MOCHILA.cenefas) * 100}
+                    initial={initialMochila.cenefas}
                   />
                 </div>
               </section>

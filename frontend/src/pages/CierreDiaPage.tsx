@@ -23,7 +23,7 @@ export function CierreDiaPage() {
     setIsLoading(true)
     setError(null)
 
-    fetchDaySummary().then(data => {
+    fetchDaySummary(reponedor?.id).then(data => {
       if (!cancelled) {
         setSummary(data)
         setIsLoading(false)

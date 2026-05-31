@@ -30,6 +30,11 @@ export function getChecklistRoute(id: string) {
 }
 
 export const CATEGORY_BADGES: Record<string, string> = {
+  // Backend categories (UPPERCASE)
+  'MINORISTA': 'bg-red-50 text-[#DC2626]',
+  'MAYORISTA': 'bg-orange-50 text-[#EA580C]',
+  'DETALLISTA': 'bg-amber-50 text-[#D97706]',
+  // Legacy mock categories
   'Supermercado': 'bg-red-50 text-[#DC2626]',
   'Hipermercado': 'bg-orange-50 text-[#EA580C]',
   'Centro Comercial': 'bg-amber-50 text-[#D97706]',

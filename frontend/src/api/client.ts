@@ -162,10 +162,26 @@ export const api = {
   getReponedores: () =>
     request<BackendReponedor[]>('/api/reponedores'),
 
-  getVisitasHoy: (fecha?: string) => {
-    const qs = fecha ? `?fecha=${fecha}` : ''
+  getVisitasHoy: (fecha?: string, reponedor_id?: number) => {
+    const params: Record<string, string> = {}
+    if (fecha) params.fecha = fecha
+    if (reponedor_id !== undefined) params.reponedor_id = String(reponedor_id)
+    const qs = Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''
     return request<BackendVisita[]>(`/api/visitas/hoy${qs}`)
   },
+
+  createVisita: (body: {
+    pdv_id: number
+    reponedor_id: number
+    fecha: string
+    hora_inicio?: string
+    hora_fin?: string
+    notas?: string
+  }) =>
+    request<BackendVisita>('/api/visitas', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   getDepositos: () =>
     request<BackendDeposito[]>('/api/depositos'),

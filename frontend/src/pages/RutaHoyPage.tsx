@@ -10,15 +10,20 @@ import {
   MapPin,
   ArrowRight,
   ChevronRight,
+  CalendarX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
-import { MOCK_RUTA_HOY, simulateApiCall, type RutaHoy } from '@/data/mockData'
+import { fetchRutaHoy } from '@/services/api'
+import type { RutaHoy } from '@/data/mockData'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { BottomNav } from '@/components/BottomNav'
 
 const CATEGORY_BADGES: Record<string, string> = {
+  'MINORISTA': 'bg-red-50 text-[#DC2626]',
+  'MAYORISTA': 'bg-orange-50 text-[#EA580C]',
+  'DETALLISTA': 'bg-amber-50 text-[#D97706]',
   'Supermercado': 'bg-red-50 text-[#DC2626]',
   'Hipermercado': 'bg-orange-50 text-[#EA580C]',
   'Centro Comercial': 'bg-amber-50 text-[#D97706]',
@@ -37,6 +42,12 @@ function getGreeting(): string {
   return h < 12 ? 'Buenos días' : h < 18 ? 'Buenas tardes' : 'Buenas noches'
 }
 
+function formatMinutes(min: number): string {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return h > 0 ? `${h}h ${m}min` : `${m}min`
+}
+
 function AstaLogoWhite() {
   return (
     <svg width="22" height="22" viewBox="0 0 60 60" fill="none">
@@ -47,31 +58,57 @@ function AstaLogoWhite() {
 
 export function RutaHoyPage() {
   const navigate = useNavigate()
-  const { reponedor } = useReponedor()
+  const { reponedor, setRutaHoy } = useReponedor()
   const [rutaData, setRutaData] = useState<RutaHoy | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
 
+  const load = (rep: NonNullable<typeof reponedor>) => {
+    setIsLoading(true)
+    setError(null)
+    fetchRutaHoy(rep.id)
+      .then(d => {
+        setRutaData(d)
+        setRutaHoy(d)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        setError('No se pudo cargar la ruta. Verificá tu conexión.')
+        setIsLoading(false)
+      })
+  }
+
   useEffect(() => {
+    if (!reponedor) return
     let cancelled = false
     setIsLoading(true)
     setError(null)
-    simulateApiCall(MOCK_RUTA_HOY, 1000).then(d => { if (!cancelled) { setRutaData(d); setIsLoading(false) } }).catch(() => { if (!cancelled) { setError('No se pudo cargar la ruta.'); setIsLoading(false) } })
+    fetchRutaHoy(reponedor.id)
+      .then(d => {
+        if (!cancelled) {
+          setRutaData(d)
+          setRutaHoy(d)
+          setIsLoading(false)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError('No se pudo cargar la ruta. Verificá tu conexión.')
+          setIsLoading(false)
+        }
+      })
     return () => { cancelled = true }
-  }, [])
+  }, [reponedor?.id])
 
   if (!reponedor) return <LoadingScreen message="Verificando sesión..." />
 
-  const handlePdvTap = (id: string) => navigate(`/pdv/${id}`)
-  const handleRetry = () => {
-    setIsLoading(true); setError(null)
-    simulateApiCall(MOCK_RUTA_HOY, 1000).then(d => { setRutaData(d); setIsLoading(false) }).catch(() => { setError('No se pudo cargar la ruta.'); setIsLoading(false) })
-  }
+  const handleRetry = () => load(reponedor)
+
   const handleStartRoute = () => {
     setConfirmed(true)
     const firstPdvId = rutaData?.pdvs[0]?.id
-    setTimeout(() => navigate(firstPdvId ? `/app/pdv/${firstPdvId}` : '/app/ruta-hoy'), 400)
+    setTimeout(() => navigate(firstPdvId != null ? `/app/pdv/${firstPdvId}` : '/app/ruta-hoy'), 400)
   }
 
   const nextPdv = rutaData?.pdvs[0]
@@ -88,11 +125,13 @@ export function RutaHoyPage() {
             <h1 className="text-white text-base font-bold mt-0.5">{reponedor.nombre}</h1>
             <p className="text-white/40 text-[10px] mt-1">{formatDate()}</p>
           </header>
-          <ErrorState title="Error" message={error} onRetry={handleRetry} fullScreen={false} className="flex-1" />
+          <ErrorState title="Sin conexión" message={error} onRetry={handleRetry} fullScreen={false} className="flex-1" />
         </div>
       </div>
     )
   }
+
+  const emptyRoute = !isLoading && rutaData != null && rutaData.pdvs.length === 0
 
   return (
     <div className="min-h-dvh bg-[#0F172A] flex justify-center">
@@ -144,6 +183,16 @@ export function RutaHoyPage() {
                 </div>
               ))}
             </div>
+          ) : emptyRoute ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="w-14 h-14 rounded-full bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center mb-4">
+                <CalendarX className="w-7 h-7 text-[#94A3B8]" />
+              </div>
+              <p className="text-sm font-semibold text-[#0F172A] text-center">Sin visitas programadas hoy</p>
+              <p className="text-xs text-[#64748B] mt-1 text-center">
+                No tenés PDVs asignados para este día. Consultá con tu supervisor.
+              </p>
+            </div>
           ) : rutaData ? (
             <>
               <section className="rounded-xl bg-white border border-[#E2E8F0] p-4 shadow-sm">
@@ -152,7 +201,12 @@ export function RutaHoyPage() {
                     <ShoppingBag className="w-4 h-4 text-[#DC2626]" />
                     <h2 className="text-[13px] font-bold text-[#0F172A]">Mi Mochila Inteligente</h2>
                   </div>
-                  <span className="text-[10px] font-semibold text-[#DC2626] bg-red-50 px-2 py-0.5 rounded-full">+10% buffer</span>
+                  {rutaData.tiempo_estimado != null && (
+                    <span className="text-[10px] font-semibold text-[#64748B] flex items-center gap-0.5">
+                      <Clock className="w-3 h-3" />
+                      ~{formatMinutes(rutaData.tiempo_estimado)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {[
@@ -174,7 +228,7 @@ export function RutaHoyPage() {
                   <p className="text-[10px] font-semibold text-[#64748B] mb-1.5 uppercase tracking-wider">Siguiente visita</p>
                   <button
                     type="button"
-                    onClick={() => handlePdvTap(nextPdv.id)}
+                    onClick={() => navigate(`/app/pdv/${nextPdv.id}`)}
                     className="w-full text-left rounded-xl bg-white border border-[#DC2626]/20 p-3.5 shadow-sm active:brightness-95 transition-all"
                   >
                     <div className="flex items-center gap-2.5">
@@ -184,7 +238,9 @@ export function RutaHoyPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
                           <h3 className="text-sm font-bold text-[#0F172A] truncate">{nextPdv.name}</h3>
-                          <span className="text-[9px] font-semibold text-[#DC2626] bg-red-50 px-1.5 py-0.5 rounded shrink-0">{nextPdv.category}</span>
+                          <span className="text-[9px] font-semibold text-[#DC2626] bg-red-50 px-1.5 py-0.5 rounded shrink-0">
+                            {nextPdv.category}
+                          </span>
                         </div>
                         <p className="text-[10px] text-[#64748B] mt-0.5 flex items-center gap-1">
                           <MapPin className="w-2.5 h-2.5 shrink-0" />
@@ -201,14 +257,14 @@ export function RutaHoyPage() {
               {remainingPdvs.length > 0 && (
                 <section className="mt-3">
                   <p className="text-[10px] font-semibold text-[#64748B] mb-1.5 uppercase tracking-wider">
-                    Ruta de hoy · {remainingPdvs.length + 1} PDVs
+                    Ruta de hoy · {rutaData.pdvs.length} PDVs
                   </p>
                   <div className="space-y-2">
                     {rutaData.pdvs.map((pdv, idx) => (
                       <button
                         key={pdv.id}
                         type="button"
-                        onClick={() => handlePdvTap(pdv.id)}
+                        onClick={() => navigate(`/app/pdv/${pdv.id}`)}
                         className="w-full text-left rounded-lg bg-white border border-[#E2E8F0] p-3 active:brightness-95 transition-all"
                       >
                         <div className="flex items-center gap-2.5">
@@ -246,10 +302,10 @@ export function RutaHoyPage() {
           <button
             type="button"
             onClick={handleStartRoute}
-            disabled={confirmed || isLoading || !rutaData}
+            disabled={confirmed || isLoading || !rutaData || emptyRoute}
             className={cn(
               'w-full h-12 rounded-xl flex items-center justify-center gap-2 text-white text-sm font-bold transition-all',
-              !rutaData || isLoading
+              !rutaData || isLoading || emptyRoute
                 ? 'bg-[#DC2626]/40 cursor-not-allowed'
                 : confirmed
                   ? 'bg-[#DC2626]/70 cursor-not-allowed'
