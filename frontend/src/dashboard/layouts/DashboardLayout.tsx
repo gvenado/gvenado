@@ -1,5 +1,5 @@
 import { type ReactNode, useState, useRef, useEffect } from 'react'
-import { Bell, Search, ChevronDown } from 'lucide-react'
+import { Bell, Search, ChevronDown, CalendarDays } from 'lucide-react'
 import { Sidebar } from '@/dashboard/components/Sidebar'
 import { useDashboard } from '@/dashboard/context/DashboardContext'
 import { useSupervisor } from '@/dashboard/context/SupervisorContext'
@@ -9,8 +9,16 @@ interface DashboardLayoutProps {
   currentPage: string
 }
 
+function formatDayName(date: Date): string {
+  return date.toLocaleDateString('es-BO', { weekday: 'long' })
+}
+
+function formatDatePill(date: Date): string {
+  return date.toLocaleDateString('es-BO', { year: 'numeric', month: 'long', day: 'numeric' })
+}
+
 export function DashboardLayout({ children, currentPage }: DashboardLayoutProps) {
-  const { currentDate, location, pageTitle } = useDashboard()
+  const { location, pageTitle } = useDashboard()
   const { supervisor } = useSupervisor()
   const [searchOpen, setSearchOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -18,6 +26,8 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
   const searchRef = useRef<HTMLDivElement>(null)
   const notifRef = useRef<HTMLButtonElement>(null)
   const profileRef = useRef<HTMLDivElement>(null)
+
+  const today = new Date()
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -39,6 +49,9 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
             <div>
               <h1 className="text-base font-bold text-[#111827]">{pageTitle}</h1>
               <div className="flex items-center gap-2 text-xs text-[#6B7280]">
+                <svg className="w-3 h-3 text-[#DC2626]" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                </svg>
                 <span>{location}</span>
                 <span className="w-1 h-1 rounded-full bg-[#E5E7EB]" />
                 <span className="text-[#DC2626] font-medium">{currentPage}</span>
@@ -46,29 +59,35 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
             </div>
           </div>
 
-          <div className="text-sm text-[#6B7280] font-medium hidden md:block">
-            {currentDate}
+          {/* Calendar pill */}
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 border border-[#E5E7EB] rounded-lg bg-white">
+            <CalendarDays className="w-4 h-4 text-[#6B7280]" />
+            <div className="text-center">
+              <p className="text-xs font-semibold text-[#111827] leading-tight">{formatDatePill(today)}</p>
+              <p className="text-[10px] text-[#6B7280] leading-tight capitalize">{formatDayName(today)}</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <div ref={searchRef} className="relative">
-              <button
-                onClick={() => setSearchOpen(!searchOpen)}
-                className="w-9 h-9 rounded-lg border border-[#E5E7EB] flex items-center justify-center hover:bg-gray-50 transition-colors text-[#6B7280]"
-              >
-                <Search className="w-4 h-4" />
-              </button>
+            {/* Search bar */}
+            <div ref={searchRef} className="relative hidden lg:block">
+              <div className="flex items-center gap-2 px-3 py-2 border border-[#E5E7EB] rounded-lg bg-white min-w-[240px]">
+                <Search className="w-4 h-4 text-[#9CA3AF] shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Buscar PDV, reponedor, depósito..."
+                  className="text-xs text-[#6B7280] outline-none bg-transparent w-full placeholder:text-[#9CA3AF]"
+                  onFocus={() => setSearchOpen(true)}
+                />
+              </div>
               {searchOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-lg border border-[#E5E7EB] shadow-lg p-2 z-50">
-                  <input
-                    autoFocus
-                    placeholder="Search PDVs, workers..."
-                    className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-md outline-none focus:border-[#DC2626]"
-                  />
+                <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-[#E5E7EB] shadow-lg p-3 z-50">
+                  <p className="text-xs text-[#6B7280]">Type to search...</p>
                 </div>
               )}
             </div>
 
+            {/* Notification bell */}
             <div className="relative">
               <button
                 ref={notifRef}
@@ -77,7 +96,7 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
               >
                 <Bell className="w-4 h-4" />
                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#DC2626] rounded-full text-[9px] text-white font-bold flex items-center justify-center">
-                  3
+                  2
                 </span>
               </button>
               {notifOpen && (
@@ -90,14 +109,12 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
                     <div className="text-xs text-[#6B7280] p-2 bg-[#FFFBEB] rounded">
                       Route optimization available
                     </div>
-                    <div className="text-xs text-[#6B7280] p-2 bg-[#EFF6FF] rounded">
-                      3 PDVs pending visit today
-                    </div>
                   </div>
                 </div>
               )}
             </div>
 
+            {/* Profile */}
             <div ref={profileRef} className="relative">
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
@@ -105,6 +122,10 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
               >
                 <div className="w-8 h-8 rounded-full bg-[#991B1B] flex items-center justify-center text-white text-xs font-bold">
                   {supervisor.name.split(' ').map(n => n[0]).join('')}
+                </div>
+                <div className="hidden md:block text-left">
+                  <p className="text-xs font-semibold text-[#111827] leading-tight">Supervisor LPZ</p>
+                  <p className="text-[10px] text-[#6B7280] leading-tight">{supervisor.name}</p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-[#6B7280]" />
               </button>

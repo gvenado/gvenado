@@ -14,25 +14,44 @@ interface SupervisorContextValue {
   toggleOptimized: () => void
   optimizedReponedores: Reponedor[]
   optimizedPDVs: PDV[]
+  applied: boolean
+  applyOptimized: () => void
+  resetApplied: () => void
 }
 
 const SupervisorContext = createContext<SupervisorContextValue | null>(null)
 
 export function SupervisorProvider({ children }: { children: ReactNode }) {
   const [optimized, setOptimized] = useState(false)
+  const [currentReponedores, setCurrentReponedores] = useState(() => [...mockReponedores])
+  const [currentPDVs, setCurrentPDVs] = useState(() => [...mockPDVs])
+  const [applied, setApplied] = useState(false)
 
   const toggleOptimized = () => setOptimized(prev => !prev)
+  const applyOptimized = () => {
+    setCurrentReponedores([...mockOptimizedReponedores])
+    setCurrentPDVs([...mockOptimizedPDVs])
+    setApplied(true)
+  }
+  const resetApplied = () => {
+    setCurrentReponedores([...mockReponedores])
+    setCurrentPDVs([...mockPDVs])
+    setApplied(false)
+  }
 
   const value = useMemo<SupervisorContextValue>(() => ({
     supervisor: mockSupervisor,
-    reponedores: mockReponedores,
-    pdvs: mockPDVs,
+    reponedores: currentReponedores,
+    pdvs: currentPDVs,
     alertas: mockAlertas,
     optimized,
     toggleOptimized,
     optimizedReponedores: mockOptimizedReponedores,
     optimizedPDVs: mockOptimizedPDVs,
-  }), [optimized])
+    applied,
+    applyOptimized,
+    resetApplied,
+  }), [optimized, currentReponedores, currentPDVs, applied, toggleOptimized, applyOptimized, resetApplied])
 
   return (
     <SupervisorContext.Provider value={value}>
