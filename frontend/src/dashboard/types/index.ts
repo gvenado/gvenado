@@ -1,0 +1,7 @@
+export type { Reponedor, ReponedorStatus } from './reponedor'
+export type { PDV, PDVStatus } from './pdv'
+export type { Deposito, Warehouse, WarehouseStatus, WarehouseMaterial, TransferSuggestion } from './deposito'
+export type { Alerta, AlertSeverity } from './alerta'
+export type { GaleriaImage, EvidenceTag, EvidenceCardData, ComplianceItem, ImprovementItem } from './galeria'
+export type { Supervisor } from './supervisor'
+export type { Visita } from './visita'
