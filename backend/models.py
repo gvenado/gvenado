@@ -57,9 +57,10 @@ class PDV(Base):
 
 class Visita(Base):
     __tablename__ = "visitas"
-
+    foto_antes_url = Column(String(500), nullable=True)
+    foto_despues_url = Column(String(500), nullable=True)
     id = Column(Integer, primary_key=True, index=True)
-    pdv_id = Column(Integer, ForeignKey("pdvs.id"), nullable=False)
+    pdv_id = Column(Integer, ForeigitgnKey("pdvs.id"), nullable=False)
     reponedor_id = Column(Integer, ForeignKey("reponedores.id"), nullable=False)
     fecha = Column(Date, nullable=False)
     hora_inicio = Column(DateTime, nullable=True)
