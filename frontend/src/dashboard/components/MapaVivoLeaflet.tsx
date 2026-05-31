@@ -23,11 +23,13 @@ export interface ReplenisherMarkerData {
   accumulatedTime: string
   pdvsVisited: number
   totalPdvs: number
+  currentPdvName: string
   nextPdv: string
   eta: string
   efficiency: string
   deviation: string
   mobilityProfile: string
+  operationStatus: 'En PDV' | 'En ruta' | 'Retrasado' | 'Finalizando visita' | 'Sin conexión'
   routePoints: { lat: number; lng: number }[]
 }
 
@@ -50,6 +52,39 @@ const PDV_COLORS: Record<string, string> = {
 
 const MAP_CENTER: [number, number] = [-16.5, -68.12]
 const DEFAULT_ZOOM = 12
+
+// DEMO SIMULATION CONSTANTS — not real-time scheduling
+/** Seconds a reponedor stays at each PDV during the demo */
+const DEMO_REPONEDOR_DWELL_SECONDS = 15
+/** Seconds a reponedor takes to travel between PDVs during the demo */
+const DEMO_REPONEDOR_MOVE_SECONDS = 8
+/** Marker position update interval in milliseconds */
+const DEMO_POSITION_UPDATE_MS = 1000
+
+interface DemoPhaseState {
+  phase: 'dwell' | 'moving'
+  fromIdx: number
+  toIdx: number
+  phaseStartMs: number
+  labelPhase: 'dwell' | 'moving' | null
+}
+
+function buildLabelIcon(name: string, phase: 'dwell' | 'moving'): L.DivIcon {
+  const statusColor = phase === 'dwell' ? '#16A34A' : '#F59E0B'
+  const statusText = phase === 'dwell' ? '● En PDV' : '▶ En ruta'
+  return L.divIcon({
+    className: '',
+    html: `<div style="
+      background: rgba(255,255,255,0.95); padding: 2px 7px 4px;
+      border-radius: 4px; font-size: 9px; font-weight: 600;
+      color: #111827; border: 1px solid #E5E7EB;
+      white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-align: center; line-height: 1.4;
+    ">${name}<div style="font-size: 8px; font-weight: 500; color: ${statusColor}">${statusText}</div></div>`,
+    iconSize: [0, 0],
+    iconAnchor: [30, 26],
+  })
+}
 
 function Legend() {
   return (
@@ -79,66 +114,46 @@ function ReplenisherAnimationLayer({
   selectedRepId?: string
 }) {
   const map = useMap()
-  const markersRef = useRef<Map<string, { marker: L.Marker; label: L.Marker; animFrame: number; startTime: number }>>(new Map())
+  const markersRef = useRef<Map<string, { marker: L.Marker; label: L.Marker }>>(new Map())
 
+  // Create/destroy markers when the reponedor list changes
   useEffect(() => {
-    const icons = new Map<string, L.DivIcon>()
-    const labelIcons = new Map<string, L.DivIcon>()
-
-    replenishers.forEach(rep => {
-      const isSelected = rep.id === selectedRepId
-      icons.set(rep.id, L.divIcon({
-        className: '',
-        html: `<div style="
-          width: 28px; height: 28px; border-radius: 50%;
-          background: #2563EB; border: 3px solid #FFFFFF;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 9px; font-weight: bold; color: white;
-          ${isSelected ? 'transform: scale(1.15); box-shadow: 0 0 0 3px rgba(37,99,235,0.3);' : ''}
-        ">${rep.name.charAt(0)}</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      }))
-      labelIcons.set(rep.id, L.divIcon({
-        className: '',
-        html: `<div style="
-          background: rgba(255,255,255,0.95); padding: 1px 6px;
-          border-radius: 4px; font-size: 9px; font-weight: 600;
-          color: #111827; border: 1px solid #E5E7EB;
-          white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        ">${rep.name}</div>`,
-        iconSize: [0, 0],
-        iconAnchor: [30, 22],
-      }))
-    })
-
     replenishers.forEach(rep => {
       if (markersRef.current.has(rep.id)) return
 
-      const marker = L.marker([rep.lat, rep.lng], { icon: icons.get(rep.id)! })
+      const pts = rep.routePoints
+      const startPt = pts[0] ?? { lat: rep.lat, lng: rep.lng }
+
+      const marker = L.marker([startPt.lat, startPt.lng], {
+        icon: L.divIcon({
+          className: '',
+          html: `<div style="
+            width: 28px; height: 28px; border-radius: 50%;
+            background: #2563EB; border: 3px solid #FFFFFF;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; font-weight: bold; color: white;
+          ">${rep.name.charAt(0)}</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        }),
+      })
       marker.addTo(map)
 
-      const label = L.marker([rep.lat + 0.003, rep.lng], { icon: labelIcons.get(rep.id)! })
+      const label = L.marker([startPt.lat + 0.003, startPt.lng], {
+        icon: buildLabelIcon(rep.name, 'dwell'),
+      })
       label.addTo(map)
 
       if (onReplenisherClick) {
         marker.on('click', () => onReplenisherClick(rep))
       }
 
-      const entry = {
-        marker,
-        label,
-        animFrame: 0,
-        startTime: performance.now(),
-      }
-
-      markersRef.current.set(rep.id, entry)
+      markersRef.current.set(rep.id, { marker, label })
     })
 
     return () => {
       markersRef.current.forEach(entry => {
-        cancelAnimationFrame(entry.animFrame)
         entry.marker.remove()
         entry.label.remove()
       })
@@ -146,6 +161,7 @@ function ReplenisherAnimationLayer({
     }
   }, [replenishers.length])
 
+  // Update marker icon when selection changes
   useEffect(() => {
     replenishers.forEach(rep => {
       const entry = markersRef.current.get(rep.id)
@@ -167,39 +183,91 @@ function ReplenisherAnimationLayer({
     })
   }, [selectedRepId])
 
+  // DEMO SIMULATION — dwell/moving state machine, not real-time scheduling
   useEffect(() => {
-    const animDuration = 2000
-    let frameId: number
+    const demoStates = new Map<string, DemoPhaseState>()
 
-    function animate() {
+    replenishers.forEach((rep, i) => {
+      const pts = rep.routePoints
+      if (pts.length < 2) return
+
+      // Spread reponedores across different PDVs and phases so they don't all move together
+      const startIdx = i % (pts.length - 1)
+
+      if (i % 2 === 0) {
+        // Start dwelling — stagger how far into dwell they already are
+        const alreadyElapsedMs = (i * 3500) % (DEMO_REPONEDOR_DWELL_SECONDS * 1000)
+        demoStates.set(rep.id, {
+          phase: 'dwell',
+          fromIdx: startIdx,
+          toIdx: startIdx,
+          phaseStartMs: Date.now() - alreadyElapsedMs,
+          labelPhase: null,
+        })
+      } else {
+        // Start moving — stagger how far into the move they already are
+        const alreadyElapsedMs = (i * 2000) % (DEMO_REPONEDOR_MOVE_SECONDS * 1000)
+        demoStates.set(rep.id, {
+          phase: 'moving',
+          fromIdx: startIdx,
+          toIdx: (startIdx + 1) % pts.length,
+          phaseStartMs: Date.now() - alreadyElapsedMs,
+          labelPhase: null,
+        })
+      }
+    })
+
+    const intervalId = setInterval(() => {
+      const now = Date.now()
+
       replenishers.forEach(rep => {
         const entry = markersRef.current.get(rep.id)
-        if (!entry) return
+        const state = demoStates.get(rep.id)
+        if (!entry || !state) return
 
         const pts = rep.routePoints
         if (pts.length < 2) return
 
-        const elapsed = performance.now() - entry.startTime
-        const rawProgress = (elapsed % animDuration) / animDuration
-        const totalSegments = pts.length - 1
-        const totalProgress = rawProgress * totalSegments
-        const idx = Math.min(Math.floor(totalProgress), totalSegments - 1)
-        const frac = totalProgress - idx
+        const elapsedSec = (now - state.phaseStartMs) / 1000
+        let lat: number
+        let lng: number
 
-        const a = pts[idx]
-        const b = pts[Math.min(idx + 1, totalSegments)]
-        const lat = a.lat + (b.lat - a.lat) * frac
-        const lng = a.lng + (b.lng - a.lng) * frac
+        if (state.phase === 'dwell') {
+          const pt = pts[state.toIdx]
+          lat = pt.lat
+          lng = pt.lng
+
+          if (elapsedSec >= DEMO_REPONEDOR_DWELL_SECONDS) {
+            state.fromIdx = state.toIdx
+            state.toIdx = (state.toIdx + 1) % pts.length
+            state.phase = 'moving'
+            state.phaseStartMs = now
+          }
+        } else {
+          const t = Math.min(elapsedSec / DEMO_REPONEDOR_MOVE_SECONDS, 1)
+          const from = pts[state.fromIdx]
+          const to = pts[state.toIdx]
+          lat = from.lat + (to.lat - from.lat) * t
+          lng = from.lng + (to.lng - from.lng) * t
+
+          if (elapsedSec >= DEMO_REPONEDOR_MOVE_SECONDS) {
+            state.phase = 'dwell'
+            state.phaseStartMs = now
+          }
+        }
 
         entry.marker.setLatLng([lat, lng])
         entry.label.setLatLng([lat + 0.003, lng])
+
+        // Only rebuild label icon on phase change to avoid DOM flicker
+        if (state.phase !== state.labelPhase) {
+          entry.label.setIcon(buildLabelIcon(rep.name, state.phase))
+          state.labelPhase = state.phase
+        }
       })
+    }, DEMO_POSITION_UPDATE_MS)
 
-      frameId = requestAnimationFrame(animate)
-    }
-
-    frameId = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(frameId)
+    return () => clearInterval(intervalId)
   }, [replenishers])
 
   return null

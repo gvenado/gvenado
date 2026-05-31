@@ -482,31 +482,55 @@ export function MapaVivoPage() {
                 <>
                   <p className="text-base font-bold text-[#111827] mb-2.5">{selectedRep.name}</p>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#6B7280]">Tiempo acumulado:</span>
-                      <span className="font-semibold text-[#111827]">{selectedRep.accumulatedTime}</span>
+                    <div className="flex justify-between text-xs items-center">
+                      <span className="text-[#6B7280]">Estado actual:</span>
+                      <span
+                        className="font-semibold text-[10px] px-2 py-0.5 rounded-full"
+                        style={{
+                          backgroundColor: selectedRep.operationStatus === 'En PDV' ? '#F0FDF4'
+                            : selectedRep.operationStatus === 'En ruta' ? '#FFFBEB'
+                            : selectedRep.operationStatus === 'Retrasado' ? '#FEF2F2'
+                            : '#F9FAFB',
+                          color: selectedRep.operationStatus === 'En PDV' ? '#16A34A'
+                            : selectedRep.operationStatus === 'En ruta' ? '#F59E0B'
+                            : selectedRep.operationStatus === 'Retrasado' ? '#DC2626'
+                            : '#6B7280',
+                        }}
+                      >
+                        {selectedRep.operationStatus}
+                      </span>
                     </div>
                     <div className="flex justify-between text-xs">
-                      <span className="text-[#6B7280]">PDVs visitados:</span>
-                      <span className="font-semibold text-[#111827]">{selectedRep.pdvsVisited} / {selectedRep.totalPdvs}</span>
+                      <span className="text-[#6B7280]">PDV actual:</span>
+                      <span className="font-semibold text-[#111827] text-right max-w-[140px]">{selectedRep.currentPdvName}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[#6B7280]">Próximo PDV:</span>
-                      <span className="font-semibold text-[#111827]">{selectedRep.nextPdv}</span>
+                      <span className="font-semibold text-[#111827] text-right max-w-[140px]">{selectedRep.nextPdv}</span>
                     </div>
                     <div className="flex justify-between text-xs">
                       <span className="text-[#6B7280]">ETA:</span>
                       <span className="font-semibold text-[#111827]">{selectedRep.eta}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#6B7280]">Desviación vs plan:</span>
-                      <span className={cn('font-semibold', selectedRep.deviation !== 'En tiempo' ? 'text-[#DC2626]' : 'text-[#16A34A]')}>
-                        {selectedRep.deviation}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-[#6B7280]">Perfil de movilidad:</span>
-                      <span className="font-semibold text-[#111827]">{selectedRep.mobilityProfile}</span>
+                    <div className="border-t border-[#E5E7EB] pt-2 mt-1 space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#6B7280]">Tiempo acumulado:</span>
+                        <span className="font-semibold text-[#111827]">{selectedRep.accumulatedTime}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#6B7280]">PDVs visitados:</span>
+                        <span className="font-semibold text-[#111827]">{selectedRep.pdvsVisited} / {selectedRep.totalPdvs}</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#6B7280]">Desviación vs plan:</span>
+                        <span className={cn('font-semibold', selectedRep.deviation !== 'En tiempo' ? 'text-[#DC2626]' : 'text-[#16A34A]')}>
+                          {selectedRep.deviation}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-[#6B7280]">Perfil de movilidad:</span>
+                        <span className="font-semibold text-[#111827]">{selectedRep.mobilityProfile}</span>
+                      </div>
                     </div>
                   </div>
                   <button disabled className="w-full mt-3 px-4 py-2 bg-gray-100 text-[#9CA3AF] rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed" title="Próximamente">
