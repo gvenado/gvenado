@@ -21,7 +21,7 @@ import { DashboardLayout } from '@/dashboard/layouts/DashboardLayout'
 import { MapaLeaflet } from '@/dashboard/components/MapaLeaflet'
 import { useSupervisor } from '@/dashboard/context/SupervisorContext'
 import { ROUTES } from '@/dashboard/utils/constants'
-import type { PDV, Reponedor, Alerta } from '@/dashboard/types'
+import type { Alerta } from '@/dashboard/types'
 
 const TOTAL_PDVS = 95
 const VISITED_PDVS = 67
@@ -238,15 +238,39 @@ export function OverviewPage() {
         </div>
 
         <div className="grid grid-cols-12 gap-5">
-          {/* LEFT - Higher priority: Insight + Alerts */}
+          {/* LEFT - Mini Map */}
           <div className="col-span-6 space-y-4">
+            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
+                    <Map className="w-3.5 h-3.5 text-[#DC2626]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#111827]">Informe del día</h3>
+                    <p className="text-[10px] text-[#6B7280]">La Paz</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(ROUTES.MAPA_VIVO)}
+                  className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1"
+                >
+                  Ver mapa en vivo
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="p-0 max-h-[240px] overflow-hidden">
+                <MapaLeaflet pdvs={pdvMarkers} routes={routes} className="rounded-none" />
+              </div>
+            </div>
+
             <div className="bg-gradient-to-r from-[#FEF2F2] to-[#FFE4E4] rounded-xl border-2 border-[#FECACA] shadow-md px-5 py-5">
               <div className="flex items-start gap-4">
                 <div className="w-12 h-12 rounded-xl bg-[#DC2626] flex items-center justify-center shrink-0 shadow-sm">
                   <Lightbulb className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-bold text-[#DC2626] uppercase tracking-wider mb-1">Informe del día</p>
+                  <p className="text-[10px] font-bold text-[#DC2626] uppercase tracking-wider mb-1">Mapa Operativo</p>
                   <p className="text-xs text-[#111827] leading-relaxed">
                     <strong className="font-semibold">Reponedor 1</strong> está{' '}
                     <strong className="font-semibold">18% sobre el tiempo planificado</strong> en los primeros 4 PDVs.{' '}
@@ -263,26 +287,9 @@ export function OverviewPage() {
                 </button>
               </div>
             </div>
-
-            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-[#DC2626]" />
-                  <h3 className="text-sm font-bold text-[#111827]">Alertas en vivo</h3>
-                </div>
-                <button className="text-[10px] font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors">
-                  Ver todas ({alertas.length})
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {alertas.slice(0, 3).map(alerta => (
-                  <AlertRow key={alerta.id} alerta={alerta} />
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* RIGHT - Lower priority: Chart + Mini Map */}
+          {/* RIGHT - Chart + Alerts */}
           <div className="col-span-6 space-y-4">
             <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
               <div className="flex items-center justify-between mb-3">
@@ -314,27 +321,20 @@ export function OverviewPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
-                    <Map className="w-3.5 h-3.5 text-[#DC2626]" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#111827]">Mapa operativo</h3>
-                    <p className="text-[10px] text-[#6B7280]">La Paz</p>
-                  </div>
+            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-[#DC2626]" />
+                  <h3 className="text-sm font-bold text-[#111827]">Alertas en vivo</h3>
                 </div>
-                <button
-                  onClick={() => navigate(ROUTES.MAPA_VIVO)}
-                  className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1"
-                >
-                  Ver mapa en vivo
-                  <ChevronRight className="w-3.5 h-3.5" />
+                <button className="text-[10px] font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors">
+                  Ver todas ({alertas.length})
                 </button>
               </div>
-              <div className="p-0 max-h-[240px] overflow-hidden">
-                <MapaLeaflet pdvs={pdvMarkers} routes={routes} className="rounded-none" />
+              <div className="space-y-1.5">
+                {alertas.slice(0, 3).map(alerta => (
+                  <AlertRow key={alerta.id} alerta={alerta} />
+                ))}
               </div>
             </div>
           </div>
