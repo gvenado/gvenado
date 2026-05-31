@@ -7,6 +7,14 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ReponedorProvider } from '@/context/ReponedorContext'
 import './index.css'
 import App from './App.tsx'
+import { startOfflineMonitor } from './api/offlineQueue'
+
+// Iniciar monitor offline — cuando vuelve la señal procesa la cola automáticamente
+startOfflineMonitor(({ procesados, fallidos }) => {
+    if (procesados > 0) {
+        console.log(`✅ ${procesados} acciones sincronizadas al recuperar señal`)
+    }
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

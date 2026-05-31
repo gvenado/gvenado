@@ -67,3 +67,6 @@ assets/fotos/
 *.log
 logs/
 assets/demo_photos/
+
+test_*.jpg
+test_*.png
