@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
 import { fetchReponedores } from '@/services/api'
 import { MOCK_REPONEDORES, type Reponedor } from '@/data/mockData'
+import { DEMO_REPONEDOR_ID } from '@/config/demo'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { ConfirmationDialog } from '@/components/ConfirmationDialog'
 
@@ -34,10 +35,14 @@ export function LoginPage() {
     fetchReponedores()
       .then(data => {
         setReponedores(data)
+        const demoRep = data.find(r => r.id === DEMO_REPONEDOR_ID) ?? data[0] ?? null
+        setSelected(demoRep)
         setLoadingList(false)
       })
       .catch(() => {
-        setReponedores(MOCK_REPONEDORES)
+        const fallback = MOCK_REPONEDORES
+        setReponedores(fallback)
+        setSelected(fallback.find(r => r.id === DEMO_REPONEDOR_ID) ?? fallback[0] ?? null)
         setListError(true)
         setLoadingList(false)
       })

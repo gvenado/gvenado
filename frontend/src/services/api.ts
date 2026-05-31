@@ -3,9 +3,10 @@ import type { BackendReponedor, BackendPDV, BackendRutaHoy } from '@/api/client'
 import type { RutaHoy, PDV, Reponedor } from '@/data/mockData'
 import { MOCK_MICROTASKS } from '@/constants'
 import type { MicroTask, DaySummary, PhotoUploadResult } from '@/types'
+import { DEMO_DATE, DEMO_FALLBACK_ROUTE } from '@/config/demo'
 
-function todayISODate(): string {
-  return new Date().toISOString().split('T')[0]
+function demoDate(): string {
+  return DEMO_DATE
 }
 
 function mapReponedor(r: BackendReponedor): Reponedor {
@@ -41,8 +42,10 @@ function mapRutaHoy(r: BackendRutaHoy): RutaHoy {
 }
 
 export async function fetchRutaHoy(reponedorId: number): Promise<RutaHoy> {
-  const data = await api.getRutaHoy(reponedorId, todayISODate())
-  return mapRutaHoy(data)
+  const data = await api.getRutaHoy(reponedorId, demoDate())
+  const ruta = mapRutaHoy(data)
+  if (ruta.pdvs.length === 0) return DEMO_FALLBACK_ROUTE
+  return ruta
 }
 
 export async function fetchReponedores(): Promise<Reponedor[]> {
@@ -57,7 +60,7 @@ export async function fetchMicrotasks(): Promise<MicroTask[]> {
 export async function fetchDaySummary(reponedorId?: number): Promise<DaySummary> {
   try {
     if (reponedorId !== undefined) {
-      const visits = await api.getVisitasHoy(todayISODate(), reponedorId)
+      const visits = await api.getVisitasHoy(demoDate(), reponedorId)
       const completed = visits.filter(v => v.estado === 'completada').length
       const total = visits.length
       return {
@@ -98,7 +101,7 @@ export async function createVisita(pdvId: number, reponedorId: number): Promise<
   const visita = await api.createVisita({
     pdv_id: pdvId,
     reponedor_id: reponedorId,
-    fecha: todayISODate(),
+    fecha: demoDate(),
     hora_inicio: new Date().toISOString().replace('Z', ''),
   })
   return visita.id

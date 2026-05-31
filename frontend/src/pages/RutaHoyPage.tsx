@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
 import { fetchRutaHoy } from '@/services/api'
 import type { RutaHoy } from '@/data/mockData'
+import { DEMO_DATE } from '@/config/demo'
 import { ErrorState } from '@/components/ErrorState'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { BottomNav } from '@/components/BottomNav'
@@ -30,7 +31,7 @@ const CATEGORY_BADGES: Record<string, string> = {
 }
 
 function formatDate(): string {
-  return new Date().toLocaleDateString('es-ES', {
+  return new Date(`${DEMO_DATE}T12:00:00`).toLocaleDateString('es-ES', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

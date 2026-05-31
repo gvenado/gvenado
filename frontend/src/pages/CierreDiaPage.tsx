@@ -4,6 +4,7 @@ import { Store, Clock, Target, TrendingUp, Check, Trophy, AlertCircle } from 'lu
 import { cn } from '@/lib/utils'
 import { useReponedor } from '@/context/ReponedorContext'
 import { api } from '@/api/client'
+import { DEMO_DATE } from '@/config/demo'
 import { LoadingScreen } from '@/components/LoadingScreen'
 import { ConfirmationDialog } from '@/components/ConfirmationDialog'
 import { BottomNav } from '@/components/BottomNav'
@@ -20,10 +21,6 @@ interface SummaryData {
   facesGanadas: number       // demo: vision data not aggregated per reponedor
   posicionSemanal: number    // demo: ranking not computed server-side
   totalReponedores: number   // demo
-}
-
-function todayISODate(): string {
-  return new Date().toISOString().split('T')[0]
 }
 
 export function CierreDiaPage() {
@@ -48,7 +45,7 @@ export function CierreDiaPage() {
       let pdvsCompletados = 0
       try {
         if (reponedor?.id) {
-          const visitas = await api.getVisitasHoy(todayISODate(), reponedor.id)
+          const visitas = await api.getVisitasHoy(DEMO_DATE, reponedor.id)
           pdvsCompletados = visitas.filter(v => v.estado === 'completada').length
         }
       } catch {
@@ -99,7 +96,7 @@ export function CierreDiaPage() {
           <div>
             <h1 className="text-white text-base font-bold">Tu día</h1>
             <p className="text-white/60 text-[10px] mt-0.5">
-              {new Date().toLocaleDateString('es-ES', {
+              {new Date(`${DEMO_DATE}T12:00:00`).toLocaleDateString('es-ES', {
                 weekday: 'long', day: 'numeric', month: 'long',
               }).replace(/^\w/, c => c.toUpperCase())}
             </p>
