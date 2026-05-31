@@ -13,6 +13,7 @@ import { ComplianceChart } from '@/dashboard/components/ComplianceChart'
 import { ImprovementRanking } from '@/dashboard/components/ImprovementRanking'
 import { GalleryFilters } from '@/dashboard/components/GalleryFilters'
 import { FullRankingModal } from '@/dashboard/components/FullRankingModal'
+import { VisionUploadPanel } from '@/dashboard/components/VisionUploadPanel'
 import type { EvidenceCardData } from '@/dashboard/types'
 
 function todayStr(): string {
@@ -109,8 +110,12 @@ export function GaleriaPage() {
 
         {/* Main Content: Gallery + Analytics */}
         <div className="grid grid-cols-12 gap-5">
-          {/* AI Gallery Evidence Grid */}
-          <div className="col-span-12 lg:col-span-8">
+          {/* Demo Gallery Evidence Grid */}
+          <div className="col-span-12 lg:col-span-8 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#6B7280] uppercase tracking-wider">Galería</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-[#F59E0B]">Demo</span>
+            </div>
             {loading ? (
               <div className="grid grid-cols-3 gap-4">
                 {[1, 2, 3].map(i => (
@@ -143,6 +148,8 @@ export function GaleriaPage() {
 
           {/* Analytics Panel */}
           <div className="col-span-12 lg:col-span-4 space-y-4">
+            <VisionUploadPanel />
+
             <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
               <h3 className="text-sm font-bold text-[#111827] mb-3">Cumplimiento por microtarea</h3>
               <ComplianceChart

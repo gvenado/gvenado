@@ -11,6 +11,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function requestMultipart<T>(path: string, body: FormData): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, { method: 'POST', body })
+  if (!res.ok) {
+    throw new Error(`API ${res.status}: ${res.statusText}`)
+  }
+  return res.json() as Promise<T>
+}
+
 // ── Backend shapes ────────────────────────────────────────────────────────────
 
 export interface BackendPDV {
@@ -111,6 +119,36 @@ export interface BackendRedistribution {
   aviso: string
 }
 
+export interface VisionAnalysis {
+  faces_detectadas: number
+  marca_precios_instalados?: number
+  colgantes_instalados?: number
+  cenefas_instaladas?: number
+  faces_ganadas?: number
+  estado_orden?: string
+  descripcion?: string
+}
+
+export interface VisionAnalysisResult {
+  foto_url: string
+  hash_sha256: string
+  timestamp: string
+  analysis: VisionAnalysis
+}
+
+export interface BackendMochila {
+  marca_precios: number
+  colgantes: number
+  cenefas: number
+}
+
+export interface BackendRutaHoy {
+  reponedor_id: number
+  pdvs: BackendPDV[]
+  mochila: BackendMochila
+  tiempo_estimado: number
+}
+
 // ── API surface ───────────────────────────────────────────────────────────────
 
 export const api = {
@@ -143,4 +181,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ reponedor_ausente_id, fecha }),
     }),
+
+  getRutaHoy: (id: number, fecha: string) =>
+    request<BackendRutaHoy>(`/api/reponedores/${id}/ruta-hoy?fecha=${fecha}`),
+
+  analyzeImage: (file: File, visita_id?: number): Promise<VisionAnalysisResult> => {
+    const form = new FormData()
+    form.append('file', file)
+    if (visita_id !== undefined) form.append('visita_id', String(visita_id))
+    return requestMultipart<VisionAnalysisResult>('/api/vision/analyze', form)
+  },
 }
