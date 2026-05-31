@@ -11,6 +11,7 @@ function toMarkerData(reponedores: Reponedor[], pdvs: PDV[]): ReplenisherMarkerD
     const visited = Math.min(i * 3 + 3, total)
     const currentIdx = visited
     const current = assignedPdvs[currentIdx] ?? assignedPdvs[0]
+    const nextPdvData = assignedPdvs[currentIdx + 1]
 
     return {
       id: rep.id,
@@ -21,11 +22,16 @@ function toMarkerData(reponedores: Reponedor[], pdvs: PDV[]): ReplenisherMarkerD
       accumulatedTime: `${1 + i}h ${30 - i * 5}m`,
       pdvsVisited: visited,
       totalPdvs: total,
-      nextPdv: assignedPdvs[currentIdx + 1]?.id ?? 'N/A',
+      currentPdvName: current?.name ?? 'Sin PDV',
+      nextPdv: nextPdvData?.name ?? 'Último PDV',
       eta: `${10 + i * 2}:${String(5 + i * 10).padStart(2, '0')}`,
       efficiency: `${80 + Math.floor(Math.random() * 15)}%`,
       deviation: rep.status === 'overloaded' ? `+${15 + i * 3} min` : 'En tiempo',
       mobilityProfile: i % 2 === 0 ? 'Moderado' : 'Rápido',
+      operationStatus: rep.status === 'at_pdv' ? 'En PDV'
+        : rep.status === 'overloaded' ? 'Retrasado'
+        : rep.status === 'idle' ? 'Sin conexión'
+        : 'En ruta',
       routePoints,
     }
   })
