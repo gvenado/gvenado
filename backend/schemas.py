@@ -93,11 +93,12 @@ class VisitaOut(BaseModel):
     hora_inicio: Optional[datetime]
     hora_fin: Optional[datetime]
     foto_url: Optional[str]
+    foto_antes_url: Optional[str]
+    foto_despues_url: Optional[str]
     estado: str
     notas: Optional[str]
 
     model_config = {"from_attributes": True}
-
 
 class VisitaDetail(VisitaOut):
     pdv: PDVOut
