@@ -23,6 +23,7 @@ cd backend
 python3 -m venv venv
 source venv/bin/activate        # Linux/Mac
 # venv\Scripts\activate         # Windows
+#uvicorn main:app --reload --port 8000
 
 # Install dependencies
 pip install -r requirements.txt
