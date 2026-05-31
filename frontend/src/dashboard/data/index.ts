@@ -1,0 +1,7 @@
+export { mockSupervisor } from './mockSupervisor'
+export { mockReponedores, mockOptimizedReponedores } from './mockReponedores'
+export { mockPDVs, mockOptimizedPDVs } from './mockPDVs'
+export { mockDepositos } from './mockDepositos'
+export { mockAlertas } from './mockAlertas'
+export { mockGaleria } from './mockGaleria'
+export { mockVisitas } from './mockVisitas'
