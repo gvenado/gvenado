@@ -1,3 +1,4 @@
+import { api, type BackendVisita } from '@/api/client'
 import type { Visita } from '@/dashboard/types'
 
 export interface LiveEvent {
@@ -8,51 +9,52 @@ export interface LiveEvent {
   color: string
 }
 
-const EVENT_TEMPLATES: Array<{ description: string; color: string }> = [
-  { description: 'Critical: Replenisher 1 overload detected at PDV Central', color: '#DC2626' },
-  { description: 'Stock break alert at PDV Central - SKU-0452 critically low', color: '#DC2626' },
-  { description: 'Visit completed at PDV Miraflores by Rep 2', color: '#16A34A' },
-  { description: 'PDV San Pedro closed - out of schedule', color: '#F59E0B' },
-  { description: 'Route deviation detected for Rep 3 at PDV Obrajes', color: '#F59E0B' },
-  { description: 'Delayed arrival at PDV Calacoto - ETA +12 min', color: '#DC2626' },
-  { description: 'Exhibition photo missing for PDV Sopocachi', color: '#F59E0B' },
-  { description: 'Replenisher 4 completed all assigned PDVs ahead of schedule', color: '#16A34A' },
-  { description: 'PDV Cotacota visit started - Rep 1 on site', color: '#2563EB' },
-  { description: 'Warehouse Sur low stock alert for SKU-1023', color: '#F59E0B' },
-  { description: 'Route optimization available for Rep 5 and Rep 6', color: '#2563EB' },
-  { description: 'PDV Valle Hermoso closed - security incident reported', color: '#DC2626' },
-]
-
-const EVENT_TYPES: LiveEvent['type'][] = [
-  'critical', 'stock_break', 'completed', 'closed', 'deviation', 'delayed',
-  'critical', 'completed', 'critical', 'stock_break', 'deviation', 'closed',
-]
-
-function randomTime(): string {
-  const h = 8 + Math.floor(Math.random() * 9)
-  const m = Math.floor(Math.random() * 60)
-  return `${h}:${String(m).padStart(2, '0')}`
+function formatHora(iso: string | null): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
+  } catch {
+    return '—'
+  }
 }
 
-function generateLiveEvents(): LiveEvent[] {
-  const count = 4 + Math.floor(Math.random() * 3)
-  const indices = new Set<number>()
-  while (indices.size < Math.min(count, EVENT_TEMPLATES.length)) {
-    indices.add(Math.floor(Math.random() * EVENT_TEMPLATES.length))
+function toFrontendVisita(v: BackendVisita): Visita {
+  return {
+    id: String(v.id),
+    pdvId: String(v.pdv_id),
+    reponedorId: String(v.reponedor_id),
+    date: v.fecha,
+    status: v.estado === 'completada' ? 'completed' : 'in_progress',
+    duration: 0,
+    notes: v.notas ?? '',
   }
-  return Array.from(indices).map(i => ({
-    id: `ev-${String(Date.now()).slice(-4)}-${i}`,
-    type: EVENT_TYPES[i],
-    time: randomTime(),
-    description: EVENT_TEMPLATES[i].description,
-    color: EVENT_TEMPLATES[i].color,
-  }))
+}
+
+function toEvent(v: BackendVisita): LiveEvent {
+  const isCompleted = v.estado === 'completada'
+  const mercado = v.pdv?.mercado ?? `PDV ${v.pdv_id}`
+  const rep = v.reponedor?.nombre ?? `Rep ${v.reponedor_id}`
+
+  return {
+    id: `ev-${v.id}`,
+    type: isCompleted ? 'completed' : 'deviation',
+    time: formatHora(v.hora_inicio ?? v.hora_fin),
+    description: isCompleted
+      ? `Visita completada en ${mercado} por ${rep}`
+      : `Visita pendiente en ${mercado}`,
+    color: isCompleted ? '#16A34A' : '#F59E0B',
+  }
 }
 
 export async function fetchVisitasHoy(): Promise<{ visitas: Visita[]; events: LiveEvent[] }> {
-  await new Promise(r => setTimeout(r, 200))
-  return {
-    visitas: [],
-    events: generateLiveEvents(),
+  try {
+    const data = await api.getVisitasHoy()
+    const backendVisitas = data as BackendVisita[]
+    return {
+      visitas: backendVisitas.map(toFrontendVisita),
+      events: backendVisitas.slice(0, 8).map(toEvent),
+    }
+  } catch {
+    return { visitas: [], events: [] }
   }
 }

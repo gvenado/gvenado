@@ -22,6 +22,7 @@ import { Toast } from '@/dashboard/components/Toast'
 import { ConfirmDialog } from '@/dashboard/components/ConfirmDialog'
 import { useSupervisor } from '@/dashboard/context/SupervisorContext'
 import { collectExportData, exportPDF, exportExcel, exportGeoJSON } from '@/dashboard/services/exportService'
+import { optimizeRoutes, type OptimizeResult } from '@/dashboard/services/simuladorService'
 import type { PDV, Reponedor } from '@/dashboard/types'
 
 function useCountUp(target: number, duration: number, active: boolean) {
@@ -80,6 +81,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
   const [showOptimized, setShowOptimized] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sourceRepId, setSourceRepId] = useState<string | null>(null)
+  const [optimizeResult, setOptimizeResult] = useState<OptimizeResult | null>(null)
 
   /* Read ?source= param from URL */
   useEffect(() => {
@@ -103,7 +105,8 @@ export function SimuladorPage(_props: SimulatorPageProps) {
 
   const overloadedCount = reponedores.filter(r => r.status === 'overloaded').length
 
-  const reassignedCount = useCountUp(12, 2500, showOptimized)
+  const reassignedTarget = optimizeResult?.pdvsAsignados ?? 12
+  const reassignedCount = useCountUp(reassignedTarget, 2500, showOptimized)
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', title: string, message?: string) => {
     setToast({ visible: true, type, title, message })
@@ -113,14 +116,19 @@ export function SimuladorPage(_props: SimulatorPageProps) {
     setToast(prev => ({ ...prev, visible: false }))
   }, [])
 
-  const handleOptimize = useCallback(() => {
+  const handleOptimize = useCallback(async () => {
     if (applied) resetApplied()
     setAnimating(true)
-    setTimeout(() => {
-      setShowOptimized(true)
-      toggleOptimized()
-      setTimeout(() => setAnimating(false), 600)
-    }, 800)
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      const result = await optimizeRoutes(today)
+      setOptimizeResult(result)
+    } catch {
+      // backend offline — proceed with visual-only simulation
+    }
+    setShowOptimized(true)
+    toggleOptimized()
+    setAnimating(false)
   }, [toggleOptimized, applied, resetApplied])
 
   const resetSimulation = useCallback(() => {
@@ -238,13 +246,15 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 </button>
               )}
 
-              <div className="bg-[#FEF2F2] rounded-lg px-3 py-2 max-w-[180px] border border-[#FECACA]">
+              <div className="bg-[#FEF2F2] rounded-lg px-3 py-2 max-w-[200px] border border-[#FECACA]">
                 <div className="flex items-center gap-1 text-[#DC2626]">
                   <Sparkles className="w-3 h-3" />
                   <span className="text-[9px] font-semibold uppercase tracking-wider">Informe IA</span>
                 </div>
                 <p className="text-[10px] text-[#991B1B] mt-0.5 leading-snug">
-                  Redistribuir 12 PDVs entre 3 trabajadores puede reducir el viaje en un 23%.
+                  {optimizeResult
+                    ? `${optimizeResult.pdvsAsignados} PDVs optimizados. ${optimizeResult.totalKm.toFixed(0)} km en ${optimizeResult.reponedoresUsados} rutas. CV carga: ${(optimizeResult.balanceCarga.coeficienteVariacion * 100).toFixed(1)}%`
+                    : 'Ejecuta la optimización para ver el análisis de rutas del día.'}
                 </p>
               </div>
             </div>
@@ -508,25 +518,33 @@ export function SimuladorPage(_props: SimulatorPageProps) {
             <ImpactCard
               icon={<GitCompare className="w-4 h-4" />}
               value={showOptimized ? String(reassignedCount) : '—'}
-              label="PDVs reasignados"
+              label="PDVs optimizados"
               active={showOptimized}
             />
             <ImpactCard
               icon={<TrendingDown className="w-4 h-4" />}
-              value={showOptimized ? '23%' : '—'}
-              label="Menos distancia recorrida"
+              value={showOptimized
+                ? optimizeResult ? `${optimizeResult.totalKm.toFixed(0)} km` : '—'
+                : '—'}
+              label="Km totales de ruta"
               active={showOptimized}
             />
             <ImpactCard
               icon={<Users className="w-4 h-4" />}
-              value={showOptimized ? '4' : String(overloadedCount)}
-              label="Sobrecargas resueltas"
+              value={showOptimized
+                ? optimizeResult ? String(optimizeResult.reponedoresUsados) : String(overloadedCount)
+                : String(overloadedCount)}
+              label={showOptimized ? 'Reponedores en ruta' : 'Sobrecargados'}
               active={showOptimized}
               negative={!showOptimized}
             />
             <ImpactCard
               icon={<Target className="w-4 h-4" />}
-              value={showOptimized ? '100%' : '68%'}
+              value={showOptimized
+                ? optimizeResult
+                  ? `${Math.round((optimizeResult.pdvsAsignados / Math.max(optimizeResult.pdvsTotalesDia, 1)) * 100)}%`
+                  : '100%'
+                : `${pdvs.length > 0 ? Math.round((pdvs.filter(p => p.status !== 'pending').length / pdvs.length) * 100) : 0}%`}
               label="Cobertura de canal"
               active={showOptimized}
             />
@@ -563,7 +581,6 @@ export function SimuladorPage(_props: SimulatorPageProps) {
 
           <div className="relative group">
             <button
-              onClick={() => handleExport('pdf')}
               className="px-6 py-2.5 rounded-lg text-xs font-semibold border border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#111827] transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             >
               <Download className="w-4 h-4" />

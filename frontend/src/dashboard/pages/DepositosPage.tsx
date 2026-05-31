@@ -10,7 +10,7 @@ import { Toast } from '@/dashboard/components/Toast'
 import { useWarehouses } from '@/dashboard/hooks/useWarehouses'
 
 export function DepositosPage() {
-  const { warehouses, selectedWarehouse, selectedId, selectWarehouse, kpis } = useWarehouses()
+  const { warehouses, selectedWarehouse, selectedId, selectWarehouse, kpis, loading } = useWarehouses()
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTab, setDetailTab] = useState<'alerts' | 'history'>('alerts')
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'error' | 'info'; title: string; message?: string }>({
@@ -45,19 +45,19 @@ export function DepositosPage() {
         <div className="grid grid-cols-3 gap-4">
           <KPICard
             label="Depósitos en alerta"
-            value={String(kpis.warehousesInAlert)}
+            value={loading ? '—' : String(kpis.warehousesInAlert)}
             icon={<AlertTriangle className="w-5 h-5" />}
             iconBgClass="bg-[#F59E0B]"
           />
           <KPICard
             label="Materiales críticos"
-            value={String(kpis.criticalMaterials)}
+            value={loading ? '—' : String(kpis.criticalMaterials)}
             icon={<PackageOpen className="w-5 h-5" />}
             iconBgClass="bg-[#DC2626]"
           />
           <KPICard
             label="Stock POP total"
-            value="12,480"
+            value={loading ? '—' : kpis.totalStock.toLocaleString()}
             trend="Unidades"
             icon={<Warehouse className="w-5 h-5" />}
             iconBgClass="bg-[#2563EB]"
@@ -70,7 +70,7 @@ export function DepositosPage() {
           <div className="col-span-7">
             <WarehouseStatusTable
               warehouses={warehouses}
-              selectedId={selectedId}
+              selectedId={selectedId ?? ''}
               onSelect={selectWarehouse}
             />
           </div>

@@ -1,15 +1,17 @@
-import { createContext, useContext, useState, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useState, useMemo, useEffect, useCallback, type ReactNode } from 'react'
 import type { Supervisor, Reponedor, PDV, Alerta } from '@/dashboard/types'
 import { mockSupervisor } from '@/dashboard/data/mockSupervisor'
-import { mockReponedores, mockOptimizedReponedores } from '@/dashboard/data/mockReponedores'
-import { mockPDVs, mockOptimizedPDVs } from '@/dashboard/data/mockPDVs'
 import { mockAlertas } from '@/dashboard/data/mockAlertas'
+import { fetchPdvs } from '@/dashboard/services/pdvsService'
+import { fetchReponedores } from '@/dashboard/services/reponedoresService'
 
 interface SupervisorContextValue {
   supervisor: Supervisor
   reponedores: Reponedor[]
   pdvs: PDV[]
   alertas: Alerta[]
+  loading: boolean
+  error: string | null
   optimized: boolean
   toggleOptimized: () => void
   optimizedReponedores: Reponedor[]
@@ -22,36 +24,70 @@ interface SupervisorContextValue {
 const SupervisorContext = createContext<SupervisorContextValue | null>(null)
 
 export function SupervisorProvider({ children }: { children: ReactNode }) {
-  const [optimized, setOptimized] = useState(false)
-  const [currentReponedores, setCurrentReponedores] = useState(() => [...mockReponedores])
-  const [currentPDVs, setCurrentPDVs] = useState(() => [...mockPDVs])
-  const [applied, setApplied] = useState(false)
+  const [pdvs, setPdvs] = useState<PDV[]>([])
+  const [reponedores, setReponedores] = useState<Reponedor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleOptimized = () => setOptimized(prev => !prev)
-  const applyOptimized = () => {
-    setCurrentReponedores([...mockOptimizedReponedores])
-    setCurrentPDVs([...mockOptimizedPDVs])
+  const [optimized, setOptimized] = useState(false)
+  const [applied, setApplied] = useState(false)
+  const [optimizedPDVs, setOptimizedPDVs] = useState<PDV[]>([])
+  const [optimizedReponedores, setOptimizedReponedores] = useState<Reponedor[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const loadedPdvs = await fetchPdvs()
+        if (cancelled) return
+        setPdvs(loadedPdvs)
+        setOptimizedPDVs(loadedPdvs)
+
+        const loadedReps = await fetchReponedores(loadedPdvs)
+        if (cancelled) return
+        setReponedores(loadedReps)
+        setOptimizedReponedores(loadedReps)
+      } catch (err) {
+        if (cancelled) return
+        setError(err instanceof Error ? err.message : 'Error al cargar datos')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [])
+
+  const toggleOptimized = useCallback(() => setOptimized(prev => !prev), [])
+
+  const applyOptimized = useCallback(() => {
     setApplied(true)
-  }
-  const resetApplied = () => {
-    setCurrentReponedores([...mockReponedores])
-    setCurrentPDVs([...mockPDVs])
+  }, [])
+
+  const resetApplied = useCallback(() => {
     setApplied(false)
-  }
+    setOptimized(false)
+  }, [])
 
   const value = useMemo<SupervisorContextValue>(() => ({
     supervisor: mockSupervisor,
-    reponedores: currentReponedores,
-    pdvs: currentPDVs,
+    reponedores,
+    pdvs,
     alertas: mockAlertas,
+    loading,
+    error,
     optimized,
     toggleOptimized,
-    optimizedReponedores: mockOptimizedReponedores,
-    optimizedPDVs: mockOptimizedPDVs,
+    optimizedReponedores,
+    optimizedPDVs,
     applied,
     applyOptimized,
     resetApplied,
-  }), [optimized, currentReponedores, currentPDVs, applied, toggleOptimized, applyOptimized, resetApplied])
+  }), [optimized, reponedores, pdvs, loading, error, optimizedReponedores, optimizedPDVs, applied, toggleOptimized, applyOptimized, resetApplied])
 
   return (
     <SupervisorContext.Provider value={value}>

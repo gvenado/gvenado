@@ -23,14 +23,7 @@ import { useSupervisor } from '@/dashboard/context/SupervisorContext'
 import { ROUTES } from '@/dashboard/utils/constants'
 import type { Alerta } from '@/dashboard/types'
 
-const TOTAL_PDVS = 95
-const VISITED_PDVS = 67
-const PENDING_PDVS = 28
-const ACTIVE_REPLENISHERS = 23
-const INACTIVE_REPLENISHERS = 1
 const POP_EFFICIENCY = 91
-const CRITICAL_ALERTS = 7
-const DAILY_COVERAGE_PCT = (VISITED_PDVS / TOTAL_PDVS) * 100
 
 const dailyProgressData = [
   { hour: '06:00', planned: 0, actual: 0 },
@@ -155,7 +148,12 @@ function AlertRow({ alerta }: AlertRowProps) {
 
 export function OverviewPage() {
   const navigate = useNavigate()
-  const { pdvs, reponedores, alertas } = useSupervisor()
+  const { pdvs, reponedores, alertas, loading } = useSupervisor()
+
+  const totalPdvs = pdvs.length
+  const visitedPdvs = useMemo(() => pdvs.filter(p => p.status === 'completed').length, [pdvs])
+  const pendingPdvs = useMemo(() => pdvs.filter(p => p.status === 'pending').length, [pdvs])
+  const dailyCoveragePct = totalPdvs > 0 ? (visitedPdvs / totalPdvs) * 100 : 0
 
   const routes = useMemo(() =>
     reponedores.map(rep => {
@@ -183,11 +181,11 @@ export function OverviewPage() {
     [pdvs]
   )
 
-  const visitedAnim = useCountUp(VISITED_PDVS, 1500, true)
-  const pendingAnim = useCountUp(PENDING_PDVS, 1200, true)
-  const activeAnim = useCountUp(ACTIVE_REPLENISHERS, 1000, true)
-  const efficiencyAnim = useCountUp(POP_EFFICIENCY, 1800, true)
-  const alertsAnim = useCountUp(CRITICAL_ALERTS, 800, true)
+  const visitedAnim = useCountUp(visitedPdvs, 1500, !loading)
+  const pendingAnim = useCountUp(pendingPdvs, 1200, !loading)
+  const activeAnim = useCountUp(reponedores.length, 1000, !loading)
+  const efficiencyAnim = useCountUp(POP_EFFICIENCY, 1800, !loading)
+  const alertsAnim = useCountUp(alertas.length, 800, !loading)
 
   return (
     <DashboardLayout currentPage="Operaciones del día">
@@ -195,25 +193,24 @@ export function OverviewPage() {
         <div className="grid grid-cols-6 gap-3">
           <OverviewKPICard
             label="PDVs visitados hoy"
-            value={`${visitedAnim} / ${TOTAL_PDVS}`}
+            value={loading ? '—' : `${visitedAnim} / ${totalPdvs}`}
             icon={<Store />}
             iconBgClass="bg-[#16A34A]"
-            progressValue={DAILY_COVERAGE_PCT}
+            progressValue={dailyCoveragePct}
             progressLabel="Cobertura diaria"
           />
           <OverviewKPICard
             label="PDVs pendientes"
-            value={String(pendingAnim)}
+            value={loading ? '—' : String(pendingAnim)}
             icon={<Clock />}
             iconBgClass="bg-[#F59E0B]"
             badge={{ text: 'Riesgo medio', color: 'text-[#F59E0B]', bg: 'bg-[#FFFBEB]' }}
           />
           <OverviewKPICard
             label="Reponedores activos"
-            value={String(activeAnim)}
+            value={loading ? '—' : String(activeAnim)}
             icon={<Users />}
             iconBgClass="bg-[#2563EB]"
-            subtitle={`${INACTIVE_REPLENISHERS} inactivo`}
           />
           <OverviewKPICard
             label="Desviación promedio vs plan"
@@ -230,7 +227,7 @@ export function OverviewPage() {
           />
           <OverviewKPICard
             label="Alertas críticas"
-            value={String(alertsAnim)}
+            value={loading ? '—' : String(alertsAnim)}
             icon={<Bell />}
             iconBgClass="bg-[#DC2626]"
             badge={{ text: 'Acción requerida', color: 'text-[#DC2626]', bg: 'bg-[#FEF2F2]' }}

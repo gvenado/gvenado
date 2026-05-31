@@ -9,12 +9,12 @@ function toMarkerData(pdvs: PDV[]): PDVMarkerData[] {
   return pdvs.map((p, i) => ({
     id: p.id,
     name: p.name,
-    code: `GV${String(i + 1).padStart(3, '0')}`,
+    code: p.address || `GV${String(i + 1).padStart(3, '0')}`,
     category: CATEGORIES[i % CATEGORIES.length],
     lat: p.lat,
     lng: p.lng,
     status: p.status,
-    estimatedTime: `${15 + (i % 30)} min`,
+    estimatedTime: `${20 + (i % 25)} min`,
   }))
 }
 
