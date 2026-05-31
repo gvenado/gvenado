@@ -207,4 +207,11 @@ export const api = {
     if (visita_id !== undefined) form.append('visita_id', String(visita_id))
     return requestMultipart<VisionAnalysisResult>('/api/vision/analyze', form)
   },
+
+  // Upload a photo to a specific visita — sets foto_url and marks estado='completada'
+  uploadVisitaFoto: (visitaId: number, file: File): Promise<BackendVisita> => {
+    const form = new FormData()
+    form.append('file', file)
+    return requestMultipart<BackendVisita>(`/api/visitas/${visitaId}/foto`, form)
+  },
 }

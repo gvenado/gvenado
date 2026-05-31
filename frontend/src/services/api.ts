@@ -2,7 +2,7 @@ import { api } from '@/api/client'
 import type { BackendReponedor, BackendPDV, BackendRutaHoy } from '@/api/client'
 import type { RutaHoy, PDV, Reponedor } from '@/data/mockData'
 import { MOCK_MICROTASKS } from '@/constants'
-import type { MicroTask, DaySummary } from '@/types'
+import type { MicroTask, DaySummary, PhotoUploadResult } from '@/types'
 
 function todayISODate(): string {
   return new Date().toISOString().split('T')[0]
@@ -54,11 +54,6 @@ export async function fetchMicrotasks(): Promise<MicroTask[]> {
   return MOCK_MICROTASKS
 }
 
-// Photo analysis requires a real file; photo capture not yet implemented.
-export async function analyzePhoto(_before: string, _after: string): Promise<string> {
-  return '✓ Detectamos 7 caras de Frussion. POP cenefa instalado correctamente.'
-}
-
 export async function fetchDaySummary(reponedorId?: number): Promise<DaySummary> {
   try {
     if (reponedorId !== undefined) {
@@ -107,4 +102,12 @@ export async function createVisita(pdvId: number, reponedorId: number): Promise<
     hora_inicio: new Date().toISOString().replace('Z', ''),
   })
   return visita.id
+}
+
+// Uploads photo to backend, marks visita as completada.
+// Returns foto_url from backend. hash_sha256 and faces_detectadas are not
+// returned by this endpoint — see POST /api/vision/analyze if needed.
+export async function uploadVisitaFoto(visitaId: number, file: File): Promise<PhotoUploadResult> {
+  const result = await api.uploadVisitaFoto(visitaId, file)
+  return { foto_url: result.foto_url ?? '' }
 }
