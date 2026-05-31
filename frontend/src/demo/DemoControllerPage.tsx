@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 
 const DEMO_STEPS = [
     { id: "reset",      label: "🏁 Iniciar demo",           endpoint: "/api/demo/reset",          timing: "0:00" },

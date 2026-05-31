@@ -17,7 +17,7 @@ function DialogOverlay({ children, onClose }: { children: React.ReactNode; onClo
   )
 }
 
-function PerfilDialog({ reponedor, onClose }: { reponedor: { nombre: string; supervisor: string; id: string }; onClose: () => void }) {
+function PerfilDialog({ reponedor, onClose }: { reponedor: { nombre: string; supervisor: string; id: number | string }; onClose: () => void }) {
   return (
     <DialogOverlay onClose={onClose}>
       <div className="px-5 pt-5 pb-4">
