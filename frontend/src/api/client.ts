@@ -53,12 +53,13 @@ export interface BackendVisita {
   hora_inicio: string | null
   hora_fin: string | null
   foto_url: string | null
+  foto_antes_url: string | null
+  foto_despues_url: string | null
   estado: string
   notas: string | null
   pdv?: { id: number; mercado: string; cliente: string }
   reponedor?: { id: number; nombre: string }
 }
-
 export interface BackendDeposito {
   id: number
   mercado: string
@@ -190,5 +191,42 @@ export const api = {
     form.append('file', file)
     if (visita_id !== undefined) form.append('visita_id', String(visita_id))
     return requestMultipart<VisionAnalysisResult>('/api/vision/analyze', form)
+  },
+  uploadFotoAntes: async (visita_id: number, file: File): Promise<BackendVisita | null> => {
+    if (!navigator.onLine) {
+      const { enqueue, fileToBase64 } = await import('./offlineQueue')
+      const base64 = await fileToBase64(file)
+      enqueue({
+        type: 'foto_antes',
+        endpoint: `/api/visitas/${visita_id}/foto-antes`,
+        fileBase64: base64,
+        fileName: file.name,
+        fileType: file.type,
+      })
+      console.log('[client] Sin señal — foto antes encolada')
+      return null
+    }
+    const form = new FormData()
+    form.append('file', file)
+    return requestMultipart<BackendVisita>(`/api/visitas/${visita_id}/foto-antes`, form)
+  },
+
+  uploadFotoDespues: async (visita_id: number, file: File): Promise<BackendVisita | null> => {
+    if (!navigator.onLine) {
+      const { enqueue, fileToBase64 } = await import('./offlineQueue')
+      const base64 = await fileToBase64(file)
+      enqueue({
+        type: 'foto_despues',
+        endpoint: `/api/visitas/${visita_id}/foto-despues`,
+        fileBase64: base64,
+        fileName: file.name,
+        fileType: file.type,
+      })
+      console.log('[client] Sin señal — foto después encolada')
+      return null
+    }
+    const form = new FormData()
+    form.append('file', file)
+    return requestMultipart<BackendVisita>(`/api/visitas/${visita_id}/foto-despues`, form)
   },
 }
