@@ -142,3 +142,8 @@ Guardar en `assets/demo_photos/`:
 | `pdv_mayorista_antes.jpg` | Góndola grande sin POP |
 | `pdv_mayorista_despues.jpg` | La misma góndola post-reponedor |
 | `pdv_cerrado.jpg` | Puerta de local cerrado |
+
+> **Migración requerida** si ya tenés la DB creada:
+> ```
+> python scripts/migrate_foto_urls.py
+> ```
