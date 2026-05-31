@@ -36,4 +36,6 @@ export interface ImprovementItem {
   code: string
   name: string
   facesGained: number
+  replenisher: string
+  date: string
 }

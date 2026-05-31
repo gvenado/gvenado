@@ -5,7 +5,7 @@ import { ROUTES } from '@/dashboard/utils/constants'
 import { useDashboard } from '@/dashboard/context/DashboardContext'
 
 const navItems = [
-  { label: 'Overview', href: ROUTES.OVERVIEW, icon: LayoutDashboard },
+  { label: 'Resumen General', href: ROUTES.OVERVIEW, icon: LayoutDashboard },
   { label: 'Mapa en vivo', href: ROUTES.MAPA_VIVO, icon: Map },
   { label: 'Reponedores', href: ROUTES.REPONEDORES, icon: Users },
   { label: 'Galería IA', href: ROUTES.GALERIA, icon: Image },

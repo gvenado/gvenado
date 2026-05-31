@@ -190,90 +190,111 @@ export function OverviewPage() {
   const alertsAnim = useCountUp(CRITICAL_ALERTS, 800, true)
 
   return (
-    <DashboardLayout currentPage="Today's Operations">
+    <DashboardLayout currentPage="Operaciones del día">
       <div className="p-6 space-y-5">
         <div className="grid grid-cols-6 gap-3">
           <OverviewKPICard
-            label="PDVs Visited Today"
+            label="PDVs visitados hoy"
             value={`${visitedAnim} / ${TOTAL_PDVS}`}
             icon={<Store />}
             iconBgClass="bg-[#16A34A]"
             progressValue={DAILY_COVERAGE_PCT}
-            progressLabel="Daily Coverage"
+            progressLabel="Cobertura diaria"
           />
           <OverviewKPICard
-            label="Pending PDVs"
+            label="PDVs pendientes"
             value={String(pendingAnim)}
             icon={<Clock />}
             iconBgClass="bg-[#F59E0B]"
-            badge={{ text: 'Medium Risk', color: 'text-[#F59E0B]', bg: 'bg-[#FFFBEB]' }}
+            badge={{ text: 'Riesgo medio', color: 'text-[#F59E0B]', bg: 'bg-[#FFFBEB]' }}
           />
           <OverviewKPICard
-            label="Active Replenishers"
+            label="Reponedores activos"
             value={String(activeAnim)}
             icon={<Users />}
             iconBgClass="bg-[#2563EB]"
-            subtitle={`${INACTIVE_REPLENISHERS} inactive`}
+            subtitle={`${INACTIVE_REPLENISHERS} inactivo`}
           />
           <OverviewKPICard
-            label="Average Deviation vs Plan"
+            label="Desviación promedio vs plan"
             value="+18%"
             icon={<TrendingUp />}
             iconBgClass="bg-[#DC2626]"
           />
           <OverviewKPICard
-            label="Average POP Efficiency"
+            label="Eficiencia POP promedio"
             value={`${efficiencyAnim}%`}
             icon={<Target />}
             iconBgClass="bg-[#16A34A]"
-            subtitle="+6 points vs yesterday"
+            subtitle="+6 puntos vs ayer"
           />
           <OverviewKPICard
-            label="Critical Alerts"
+            label="Alertas críticas"
             value={String(alertsAnim)}
             icon={<Bell />}
             iconBgClass="bg-[#DC2626]"
-            badge={{ text: 'Action Required', color: 'text-[#DC2626]', bg: 'bg-[#FEF2F2]' }}
+            badge={{ text: 'Acción requerida', color: 'text-[#DC2626]', bg: 'bg-[#FEF2F2]' }}
           />
         </div>
 
         <div className="grid grid-cols-12 gap-5">
-          <div className="col-span-7 bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
-                  <Map className="w-4 h-4 text-[#DC2626]" />
+          {/* LEFT - Higher priority: Insight + Alerts */}
+          <div className="col-span-6 space-y-4">
+            <div className="bg-gradient-to-r from-[#FEF2F2] to-[#FFE4E4] rounded-xl border-2 border-[#FECACA] shadow-md px-5 py-5">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-[#DC2626] flex items-center justify-center shrink-0 shadow-sm">
+                  <Lightbulb className="w-6 h-6 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-[#111827]">Operational Map</h3>
-                  <p className="text-[10px] text-[#6B7280]">La Paz</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-[#DC2626] uppercase tracking-wider mb-1">Informe del día</p>
+                  <p className="text-xs text-[#111827] leading-relaxed">
+                    <strong className="font-semibold">Reponedor 1</strong> está{' '}
+                    <strong className="font-semibold">18% sobre el tiempo planificado</strong> en los primeros 4 PDVs.{' '}
+                    Considera redistribuir <strong className="font-semibold">3 PDVs</strong> a{' '}
+                    <strong className="font-semibold">Reponedor 7</strong> para equilibrar la carga y reducir la desviación de ruta.
+                  </p>
                 </div>
+                <button
+                  onClick={() => navigate(ROUTES.SIMULADOR)}
+                  className="px-5 py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-md hover:shadow-lg shrink-0"
+                >
+                  Ver simulador
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
-              <button
-                onClick={() => navigate(ROUTES.MAPA_VIVO)}
-                className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1"
-              >
-                View Live Map
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
             </div>
-            <div className="p-0">
-              <MapaLeaflet pdvs={pdvMarkers} routes={routes} className="rounded-none" />
+
+            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-[#DC2626]" />
+                  <h3 className="text-sm font-bold text-[#111827]">Alertas en vivo</h3>
+                </div>
+                <button className="text-[10px] font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors">
+                  Ver todas ({alertas.length})
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {alertas.slice(0, 3).map(alerta => (
+                  <AlertRow key={alerta.id} alerta={alerta} />
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="col-span-5 space-y-4">
+          {/* RIGHT - Lower priority: Chart + Mini Map */}
+          <div className="col-span-6 space-y-4">
             <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-[#6B7280]" />
-                  <h3 className="text-sm font-bold text-[#111827]">Progress of the Day</h3>
+                  <h3 className="text-sm font-bold text-[#111827]">Avance del día</h3>
                 </div>
                 <select className="text-xs border border-[#E5E7EB] rounded-md px-2 py-1 text-[#6B7280] bg-white outline-none focus:border-[#DC2626]">
-                  <option>PDVs Covered vs Plan</option>
+                  <option>PDVs cubiertos vs plan</option>
                 </select>
               </div>
-              <div className="h-[260px]">
+              <div className="h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyProgressData} margin={{ top: 10, right: 5, left: -20, bottom: 0 }}>
                     <defs>
@@ -286,50 +307,35 @@ export function OverviewPage() {
                     <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
                     <Tooltip content={<ChartTooltip />} />
-                    <Area type="monotone" dataKey="planned" stroke="#9CA3AF" strokeWidth={1.5} strokeDasharray="4 3" fill="none" name="Planned" />
-                    <Area type="monotone" dataKey="actual" stroke="#DC2626" strokeWidth={2} fill="url(#colorActual)" name="Actual" />
+                    <Area type="monotone" dataKey="planned" stroke="#9CA3AF" strokeWidth={1.5} strokeDasharray="4 3" fill="none" name="Planificado" />
+                    <Area type="monotone" dataKey="actual" stroke="#DC2626" strokeWidth={2} fill="url(#colorActual)" name="Real" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Bell className="w-4 h-4 text-[#DC2626]" />
-                  <h3 className="text-sm font-bold text-[#111827]">Live Alerts</h3>
+            <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
+                    <Map className="w-3.5 h-3.5 text-[#DC2626]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-[#111827]">Mapa operativo</h3>
+                    <p className="text-[10px] text-[#6B7280]">La Paz</p>
+                  </div>
                 </div>
-                <button className="text-[10px] font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors">
-                  View All ({alertas.length})
+                <button
+                  onClick={() => navigate(ROUTES.MAPA_VIVO)}
+                  className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1"
+                >
+                  Ver mapa en vivo
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="space-y-1.5">
-                {alertas.slice(0, 4).map(alerta => (
-                  <AlertRow key={alerta.id} alerta={alerta} />
-                ))}
+              <div className="p-0 max-h-[240px] overflow-hidden">
+                <MapaLeaflet pdvs={pdvMarkers} routes={routes} className="rounded-none" />
               </div>
-            </div>
-
-            <div className="bg-[#FEF2F2] rounded-xl border border-[#FECACA] shadow-sm px-5 py-4 flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl bg-[#DC2626] flex items-center justify-center shrink-0">
-                <Lightbulb className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-[#DC2626] uppercase tracking-wider mb-0.5">Insight of the Day</p>
-                <p className="text-xs text-[#111827] leading-relaxed">
-                  <strong className="font-semibold">Replenisher 1</strong> is running{' '}
-                  <strong className="font-semibold">18% above planned time</strong> in the first 4 PDVs.{' '}
-                  Consider redistributing <strong className="font-semibold">3 PDVs</strong> to{' '}
-                  <strong className="font-semibold">Replenisher 7</strong> to balance workload and reduce route deviation.
-                </p>
-              </div>
-              <button
-                onClick={() => navigate(ROUTES.SIMULADOR)}
-                className="px-4 py-2 bg-[#DC2626] hover:bg-[#B91C1C] text-white rounded-lg text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow-md shrink-0"
-              >
-                View Simulator
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
             </div>
           </div>
         </div>

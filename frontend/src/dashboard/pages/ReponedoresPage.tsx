@@ -1,23 +1,20 @@
 import { useState, useMemo, useCallback, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Users,
   AlertTriangle,
   TrendingUp,
-  TrendingDown,
   ArrowUpDown,
   ChevronRight,
   ChevronLeft,
   Map,
-  Clock,
   Route,
   BarChart3,
-  Download,
   RefreshCw,
   Navigation,
   Store,
   CheckCircle2,
   X,
-  Maximize2,
   PersonStanding,
   Filter,
   ChevronDown,
@@ -25,6 +22,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/dashboard/layouts/DashboardLayout'
+import { RedistributionModal } from '@/dashboard/components/RedistributionModal'
+import { ROUTES } from '@/dashboard/utils/constants'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -274,9 +273,25 @@ function RouteMapPreview({ pdvs, repName, repColor }: { pdvs: MockPdv[]; repName
 /* ------------------------------------------------------------------ */
 
 export function ReponedoresPage() {
+  const navigate = useNavigate()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>(null)
   const [sortDir, setSortDir] = useState<SortDir>(null)
+  const [detailTab, setDetailTab] = useState<'route' | 'trend' | 'microtasks' | 'upcoming'>('route')
+  const [redistModalOpen, setRedistModalOpen] = useState(false)
+
+  const handleViewOnMap = useCallback((repId: string) => {
+    navigate(`${ROUTES.MAPA_VIVO}?reponedor=${repId}`)
+  }, [navigate])
+
+  const handleRedistribuirCarga = useCallback(() => {
+    setRedistModalOpen(true)
+  }, [])
+
+  const handleSimulateRedistribution = useCallback((repId: string) => {
+    setRedistModalOpen(false)
+    navigate(`${ROUTES.SIMULADOR}?source=${repId}`)
+  }, [navigate])
 
   const rows = EXACT_DATA
 
@@ -322,6 +337,14 @@ export function ReponedoresPage() {
   // Avance mini chart
   const miniGreen = [42, 48, 52, 58, 55, 62, 68]
   const miniRed = [38, 40, 35, 32, 38, 34, 30]
+
+  const microtaskData = [
+    { label: 'Estante instalado', pct: 96, color: '#16A34A' },
+    { label: 'Material colgante OK', pct: 93, color: '#2563EB' },
+    { label: 'Precios visibles', pct: 90, color: '#F59E0B' },
+    { label: 'Orden y frente', pct: 88, color: '#DC2626' },
+    { label: 'Disponibilidad stock', pct: 83, color: '#6B7280' },
+  ]
 
   return (
     <DashboardLayout currentPage="Reponedores">
@@ -386,7 +409,7 @@ export function ReponedoresPage() {
         {/* Main Content: Table + Detail Panel */}
         <div className="grid grid-cols-12 gap-5">
           {/* Table */}
-          <div className={cn('col-span-12', selected ? 'lg:col-span-7' : 'lg:col-span-12')}>
+          <div className={cn('col-span-12', selected ? 'lg:col-span-8' : 'lg:col-span-12')}>
             <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
               <div className="px-5 py-3.5 border-b border-[#E5E7EB] flex items-center justify-between">
                 <h3 className="text-sm font-bold text-[#111827]">Reponedores · Vista operativa</h3>
@@ -496,7 +519,7 @@ export function ReponedoresPage() {
 
           {/* Detail Panel — Detalle del reponedor */}
           {selected && (
-            <div className="col-span-12 lg:col-span-5">
+            <div className="col-span-12 lg:col-span-4">
               <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
                 {/* Header */}
                 <div className="px-5 py-3.5 border-b border-[#E5E7EB] flex items-center justify-between">
@@ -530,67 +553,109 @@ export function ReponedoresPage() {
                     <MetricBox icon={<PersonStanding />} label="Movilidad" value={selected.mobility} valueColor="#16A34A" />
                   </div>
 
-                  {/* Ruta del día */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <Route className="w-3.5 h-3.5 text-[#DC2626]" />
-                        <h4 className="text-xs font-bold text-[#111827]">Ruta del día</h4>
-                      </div>
-                      <button className="text-[#6B7280] hover:text-[#111827] transition-colors">
-                        <Maximize2 className="w-3 h-3" />
-                      </button>
+                  {/* Analytics Tabs */}
+                  <div className="border border-[#E5E7EB] rounded-lg overflow-hidden">
+                    <div className="flex border-b border-[#E5E7EB] bg-gray-50/50">
+                      {[
+                        { key: 'route' as const, label: 'Ruta', icon: <Route className="w-3 h-3" /> },
+                        { key: 'trend' as const, label: 'Tendencia', icon: <BarChart3 className="w-3 h-3" /> },
+                        { key: 'microtasks' as const, label: 'Microtareas', icon: <CheckCircle2 className="w-3 h-3" /> },
+                        { key: 'upcoming' as const, label: 'Próximos PDVs', icon: <Navigation className="w-3 h-3" /> },
+                      ].map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setDetailTab(tab.key)}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[10px] font-semibold transition-colors',
+                            detailTab === tab.key
+                              ? 'text-[#DC2626] bg-white border-b-2 border-[#DC2626]'
+                              : 'text-[#6B7280] hover:text-[#111827]'
+                          )}
+                        >
+                          {tab.icon}
+                          {tab.label}
+                        </button>
+                      ))}
                     </div>
-                    {selectedAssignedPdvs.length > 0 ? (
-                      <RouteMapPreview pdvs={selectedAssignedPdvs} repName={selected.name} repColor={selected.color} />
-                    ) : (
-                      <div className="flex items-center justify-center h-[160px] text-xs text-[#6B7280] bg-gray-50 rounded-lg border border-[#E5E7EB]">
-                        No PDVs assigned
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Avance del día */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        <BarChart3 className="w-3.5 h-3.5 text-[#DC2626]" />
-                        <h4 className="text-xs font-bold text-[#111827]">Avance del día</h4>
-                      </div>
-                      <MiniDualChart greenData={miniGreen} redData={miniRed} />
-                    </div>
-                    <p className="text-[11px] text-[#6B7280] mb-2">
-                      <span className="font-semibold text-[#111827]">{selected.completed}</span> / {selected.pdvs} PDVs visitados
-                    </p>
-                    <ProgressBar pct={selected.progressPct} height={10} />
-                  </div>
+                    {/* Tab Content */}
+                    <div className="p-3">
+                      {detailTab === 'route' && (
+                        selectedAssignedPdvs.length > 0 ? (
+                          <RouteMapPreview pdvs={selectedAssignedPdvs} repName={selected.name} repColor={selected.color} />
+                        ) : (
+                          <div className="flex items-center justify-center h-[160px] text-xs text-[#6B7280] bg-gray-50 rounded-lg border border-[#E5E7EB]">
+                            Sin PDVs asignados
+                          </div>
+                        )
+                      )}
 
-                  {/* Próximos PDVs */}
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-2.5">
-                      <Navigation className="w-3.5 h-3.5 text-[#DC2626]" />
-                      <h4 className="text-xs font-bold text-[#111827]">Próximos PDVs</h4>
-                    </div>
-                    <div className="space-y-0">
-                      {selectedAssignedPdvs.filter(p => p.status === 'pending').slice(0, 3).map((pdv, i) => (
-                        <div key={pdv.id} className="flex items-start gap-3 py-2.5 border-b border-[#E5E7EB] last:border-0">
-                          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
-                            <span className="text-[10px] font-bold text-[#6B7280]">{i + 1}</span>
+                      {detailTab === 'trend' && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs font-bold text-[#111827]">Avance semanal</p>
+                            <MiniDualChart greenData={miniGreen} redData={miniRed} />
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-semibold text-[#111827] truncate">{pdv.name}</p>
-                            <p className="text-[11px] text-[#6B7280] truncate">{pdv.address}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[11px] font-semibold text-[#111827]">
-                              {[10, 11, 12][i]}:{[45, 30, 15][i].toString().padStart(2, '0')}
-                            </p>
-                            <p className="text-[10px] text-[#6B7280]">{[1.2, 2.1, 1.4][i]} km</p>
+                          <p className="text-[11px] text-[#6B7280] mb-2">
+                            <span className="font-semibold text-[#111827]">{selected.completed}</span> / {selected.pdvs} PDVs visitados hoy
+                          </p>
+                          <ProgressBar pct={selected.progressPct} height={10} />
+                          <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="text-[#6B7280]">Tendencia semanal</span>
+                              <div className="flex items-center gap-3">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#16A34A]" /> Completados</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#DC2626]" /> Pendientes</span>
+                              </div>
+                            </div>
+                            <div className="mt-1">
+                              <CardSparkline data={sparkEff} color="#16A34A" />
+                            </div>
                           </div>
                         </div>
-                      ))}
-                      {selectedAssignedPdvs.filter(p => p.status === 'pending').length === 0 && (
-                        <p className="text-xs text-[#6B7280] text-center py-3">All PDVs completed</p>
+                      )}
+
+                      {detailTab === 'microtasks' && (
+                        <div className="space-y-2">
+                          <p className="text-xs font-bold text-[#111827] mb-2">Cumplimiento por microtarea</p>
+                          {microtaskData.map(mt => (
+                            <div key={mt.label}>
+                              <div className="flex justify-between text-[10px] mb-0.5">
+                                <span className="text-[#6B7280]">{mt.label}</span>
+                                <span className="font-semibold" style={{ color: mt.color }}>{mt.pct}%</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${mt.pct}%`, backgroundColor: mt.color }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {detailTab === 'upcoming' && (
+                        <div>
+                          <p className="text-xs font-bold text-[#111827] mb-2">Próximos PDVs</p>
+                          {selectedAssignedPdvs.filter(p => p.status === 'pending').slice(0, 3).length > 0 ? (
+                            selectedAssignedPdvs.filter(p => p.status === 'pending').slice(0, 3).map((pdv, i) => (
+                              <div key={pdv.id} className="flex items-start gap-3 py-2 border-b border-[#E5E7EB] last:border-0">
+                                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center shrink-0 mt-0.5">
+                                  <span className="text-[9px] font-bold text-[#6B7280]">{i + 1}</span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-semibold text-[#111827] truncate">{pdv.name}</p>
+                                  <p className="text-[10px] text-[#6B7280] truncate">{pdv.address}</p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-[10px] font-semibold text-[#111827]">
+                                    {[10, 11, 12][i]}:{[45, 30, 15][i].toString().padStart(2, '0')}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-xs text-[#6B7280] text-center py-3">Todos los PDVs completados</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -598,11 +663,17 @@ export function ReponedoresPage() {
 
                 {/* Footer Action Buttons */}
                 <div className="px-5 py-3.5 border-t border-[#E5E7EB] flex items-center gap-3">
-                  <button className="flex-1 px-3 py-2 text-xs font-bold text-[#DC2626] bg-white border border-[#DC2626] rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5">
+                  <button
+                    onClick={() => handleViewOnMap(selected.id)}
+                    className="flex-1 px-3 py-2 text-xs font-bold text-[#DC2626] bg-white border border-[#DC2626] rounded-lg hover:bg-red-50 hover:shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5"
+                  >
                     <Map className="w-3.5 h-3.5" />
                     Ver en mapa
                   </button>
-                  <button className="flex-1 px-3 py-2 text-xs font-bold text-white bg-[#DC2626] border border-[#DC2626] rounded-lg hover:bg-[#B91C1C] transition-colors flex items-center justify-center gap-1.5">
+                  <button
+                    onClick={handleRedistribuirCarga}
+                    className="flex-1 px-3 py-2 text-xs font-bold text-white bg-[#DC2626] border border-[#DC2626] rounded-lg hover:bg-[#B91C1C] hover:shadow-sm transition-all duration-200 flex items-center justify-center gap-1.5"
+                  >
                     <RefreshCw className="w-3.5 h-3.5" />
                     Redistribuir carga
                   </button>
@@ -612,6 +683,12 @@ export function ReponedoresPage() {
           )}
         </div>
       </div>
+      <RedistributionModal
+        open={redistModalOpen}
+        rep={selected ?? null}
+        onCancel={() => setRedistModalOpen(false)}
+        onSimulate={handleSimulateRedistribution}
+      />
     </DashboardLayout>
   )
 }

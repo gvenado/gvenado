@@ -32,7 +32,7 @@ function getToday(): string {
 export function exportPDF(data: ExportData) {
   const html = `<!DOCTYPE html>
 <html lang="es">
-<head><meta charset="UTF-8"><title>Redistribution Proposal</title>
+<head><meta charset="UTF-8"><title>Propuesta de redistribución</title>
 <style>
   @page { margin: 20mm 15mm; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #111827; margin: 0; padding: 20px; }
@@ -54,7 +54,7 @@ export function exportPDF(data: ExportData) {
 <body>
   <div class="header">
     <div><div class="brand">ASTA <span>GRUPO VENADO</span></div>
-    <div class="meta">Redistribution Proposal</div></div>
+    <div class="meta">Propuesta de redistribución</div></div>
     <div style="text-align:right;font-size:11px;color:#6B7280;">
       <div>${data.date}</div>
       <div>${data.supervisor}</div>
@@ -63,29 +63,29 @@ export function exportPDF(data: ExportData) {
   </div>
 
   <div class="section">
-    <h2>Current Metrics</h2>
+    <h2>Métricas actuales</h2>
     <div class="kpi-grid">
       ${data.kpiData.map(k => `<div class="kpi-card"><div class="val">${k.value}</div><div class="lbl">${k.label}</div></div>`).join('')}
     </div>
   </div>
 
   <div class="section">
-    <h2>Reassignment Summary</h2>
+    <h2>Resumen de reasignaciones</h2>
     <table>
-      <thead><tr><th>From</th><th>To</th><th>PDVs Moved</th></tr></thead>
+      <thead><tr><th>Origen</th><th>Destino</th><th>PDVs trasladados</th></tr></thead>
       <tbody>${data.reassignments.map(r => `<tr><td>${r.from}</td><td>${r.to}</td><td>${r.pdvs}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
   <div class="section">
-    <h2>Impact Summary</h2>
+    <h2>Resumen de impacto</h2>
     <table>
-      <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+      <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
       <tbody>${data.impactData.map(i => `<tr><td>${i.label}</td><td>${i.value}</td></tr>`).join('')}</tbody>
     </table>
   </div>
 
-  <div class="footer">ASTA — Automated Supervisor Territory Assistant · Generated ${data.date}</div>
+  <div class="footer">ASTA — Asistente de Territorio del Supervisor Automatizado · Generado el ${data.date}</div>
 </body></html>`
 
   const printWindow = window.open('', '_blank')
@@ -116,15 +116,15 @@ export function exportExcel(data: ExportData) {
   xmlns:o="urn:schemas-microsoft-com:office:office"
   xmlns:x="urn:schemas-microsoft-com:office:excel"
   xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Worksheet ss:Name="Reassignments">
+  <Worksheet ss:Name="Reasignaciones">
     <Table>
-      <Row><Cell><Data ss:Type="String">From Replenisher</Data></Cell><Cell><Data ss:Type="String">To Replenisher</Data></Cell><Cell><Data ss:Type="String">PDVs Moved</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Reponedor origen</Data></Cell><Cell><Data ss:Type="String">Reponedor destino</Data></Cell><Cell><Data ss:Type="String">PDVs trasladados</Data></Cell></Row>
       ${reassignRows}
     </Table>
   </Worksheet>
-  <Worksheet ss:Name="Metrics">
+  <Worksheet ss:Name="Métricas">
     <Table>
-      <Row><Cell><Data ss:Type="String">Metric</Data></Cell><Cell><Data ss:Type="String">Value</Data></Cell></Row>
+      <Row><Cell><Data ss:Type="String">Métrica</Data></Cell><Cell><Data ss:Type="String">Valor</Data></Cell></Row>
       ${metricRows}
     </Table>
   </Worksheet>
@@ -167,7 +167,7 @@ export function exportGeoJSON(data: ExportData) {
     type: 'FeatureCollection',
     features,
     metadata: {
-      title: 'ASTA Redistribution Proposal',
+      title: 'ASTA Propuesta de redistribución',
       date: data.date,
       supervisor: data.supervisor,
       location: data.location,

@@ -15,17 +15,17 @@ const statusBadgeStyles: Record<string, { bg: string; text: string }> = {
 }
 
 const statusLabels: Record<string, string> = {
-  optimal: 'Optimal',
-  stable: 'Stable',
-  alert: 'Alert',
-  critical: 'Critical',
+  optimal: 'Óptimo',
+  stable: 'Estable',
+  alert: 'Alerta',
+  critical: 'Crítico',
 }
 
 export function AlertDetailPanel({ warehouse, onSuggestTransfer }: AlertDetailPanelProps) {
   if (!warehouse) {
     return (
       <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5 flex items-center justify-center min-h-[300px]">
-        <p className="text-sm text-[#6B7280]">Select a warehouse to view details</p>
+        <p className="text-sm text-[#6B7280]">Selecciona un depósito para ver detalles</p>
       </div>
     )
   }
@@ -36,7 +36,7 @@ export function AlertDetailPanel({ warehouse, onSuggestTransfer }: AlertDetailPa
   return (
     <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
       <div className="px-5 py-4 border-b border-[#E5E7EB]">
-        <h3 className="text-sm font-bold text-[#111827]">Alert Detail</h3>
+        <h3 className="text-sm font-bold text-[#111827]">Detalle de alerta</h3>
       </div>
 
       <div className="px-5 py-4 border-b border-[#E5E7EB]">
@@ -50,15 +50,15 @@ export function AlertDetailPanel({ warehouse, onSuggestTransfer }: AlertDetailPa
         <div className="grid grid-cols-3 gap-3">
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <p className="text-lg font-black text-[#111827]">{warehouse.capacity}%</p>
-            <p className="text-[10px] text-[#6B7280] mt-0.5">Capacity %</p>
+            <p className="text-[10px] text-[#6B7280] mt-0.5">Capacidad %</p>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <p className="text-lg font-black text-[#111827]">{warehouse.daysRemaining}</p>
-            <p className="text-[10px] text-[#6B7280] mt-0.5">Days Remaining</p>
+            <p className="text-[10px] text-[#6B7280] mt-0.5">Días restantes</p>
           </div>
           <div className="text-center p-3 bg-gray-50 rounded-lg">
             <p className="text-lg font-black text-[#111827]">{criticalCount}</p>
-            <p className="text-[10px] text-[#6B7280] mt-0.5">Critical Materials</p>
+            <p className="text-[10px] text-[#6B7280] mt-0.5">Materiales críticos</p>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@ export function AlertDetailPanel({ warehouse, onSuggestTransfer }: AlertDetailPa
       {warehouse.materials.length > 0 && (
         <div>
           <div className="px-5 py-3 border-b border-[#E5E7EB]">
-            <h4 className="text-xs font-bold text-[#111827]">POP Material in Alert</h4>
+            <h4 className="text-xs font-bold text-[#111827]">Material POP en alerta</h4>
           </div>
           <div>
             {warehouse.materials.map(m => (
@@ -81,7 +81,7 @@ export function AlertDetailPanel({ warehouse, onSuggestTransfer }: AlertDetailPa
           onClick={onSuggestTransfer}
           className="w-full py-2.5 bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
         >
-          Suggest Transfer
+          Sugerir traslado
         </button>
       </div>
     </div>

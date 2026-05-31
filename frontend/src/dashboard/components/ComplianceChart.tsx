@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Label } from 'recharts'
 import type { ComplianceItem } from '@/dashboard/types'
 
 interface ComplianceChartProps {
@@ -33,6 +33,21 @@ export function ComplianceChart({ data, centerValue, centerLabel }: ComplianceCh
             {chartData.map(entry => (
               <Cell key={entry.name} fill={entry.color} />
             ))}
+            <Label
+              value={centerValue}
+              position="center"
+              content={({ viewBox }) => {
+                const { cx, cy } = viewBox as { cx: number; cy: number }
+                return (
+                  <foreignObject x={cx - 45} y={cy - 22} width={90} height={44}>
+                    <div className="flex flex-col items-center justify-center w-full h-full">
+                      <span className="text-2xl font-bold text-[#111827] leading-tight">{centerValue}</span>
+                      <span className="text-[10px] text-[#6B7280] leading-tight">{centerLabel}</span>
+                    </div>
+                  </foreignObject>
+                )
+              }}
+            />
           </Pie>
           <Tooltip
             formatter={(_: number, name: string) => {
@@ -49,12 +64,6 @@ export function ComplianceChart({ data, centerValue, centerLabel }: ComplianceCh
           />
         </PieChart>
       </ResponsiveContainer>
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center">
-          <p className="text-2xl font-bold text-[#111827] leading-tight">{centerValue}</p>
-          <p className="text-[10px] text-[#6B7280] leading-tight">{centerLabel}</p>
-        </div>
-      </div>
       <div className="mt-3 space-y-1.5">
         {data.map(item => (
           <div key={item.label} className="flex items-center gap-2 text-xs">

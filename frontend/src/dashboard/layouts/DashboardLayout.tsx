@@ -82,7 +82,7 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
               </div>
               {searchOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-[#E5E7EB] shadow-lg p-3 z-50">
-                  <p className="text-xs text-[#6B7280]">Type to search...</p>
+                  <p className="text-xs text-[#6B7280]">Escribe para buscar...</p>
                 </div>
               )}
             </div>
@@ -101,13 +101,13 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
               </button>
               {notifOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg border border-[#E5E7EB] shadow-lg p-3 z-50">
-                  <p className="text-xs font-semibold text-[#111827] mb-2">Notifications</p>
+                  <p className="text-xs font-semibold text-[#111827] mb-2">Notificaciones</p>
                   <div className="space-y-2">
                     <div className="text-xs text-[#6B7280] p-2 bg-[#FEF2F2] rounded">
-                      2 overloaded replenishers detected
+                      2 reponedores sobrecargados detectados
                     </div>
                     <div className="text-xs text-[#6B7280] p-2 bg-[#FFFBEB] rounded">
-                      Route optimization available
+                      Optimización de ruta disponible
                     </div>
                   </div>
                 </div>
@@ -134,9 +134,9 @@ export function DashboardLayout({ children, currentPage }: DashboardLayoutProps)
                   <div className="px-3 py-2 text-sm text-[#111827] font-medium">{supervisor.name}</div>
                   <div className="px-3 py-1 text-xs text-[#6B7280]">{supervisor.email}</div>
                   <hr className="my-2 border-[#E5E7EB]" />
-                  <button className="w-full text-left px-3 py-2 text-sm text-[#6B7280] hover:bg-gray-50 rounded">Profile</button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-[#6B7280] hover:bg-gray-50 rounded">Settings</button>
-                  <button className="w-full text-left px-3 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2] rounded">Log out</button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-[#6B7280] hover:bg-gray-50 rounded">Perfil</button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-[#6B7280] hover:bg-gray-50 rounded">Configuración</button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-[#DC2626] hover:bg-[#FEF2F2] rounded">Cerrar sesión</button>
                 </div>
               )}
             </div>

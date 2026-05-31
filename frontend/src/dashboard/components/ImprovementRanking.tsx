@@ -9,7 +9,7 @@ interface ImprovementRankingProps {
 export function ImprovementRanking({ items, onViewAll }: ImprovementRankingProps) {
   return (
     <div>
-      <p className="text-xs font-medium text-[#6B7280] mb-3">Faces Gained</p>
+      <p className="text-xs font-medium text-[#6B7280] mb-3">Caras ganadas</p>
       <div className="space-y-2.5">
         {items.map((item, i) => (
           <div key={item.code} className="flex items-center gap-3">
@@ -30,7 +30,7 @@ export function ImprovementRanking({ items, onViewAll }: ImprovementRankingProps
           onClick={onViewAll}
           className="w-full mt-3.5 text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center justify-center gap-1"
         >
-          View Full Ranking
+          Ver ranking completo
           <ChevronRight className="w-3 h-3" />
         </button>
       )}

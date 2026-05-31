@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect, useRef, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Users,
   Target,
-  Clock,
   GitCompare,
   Zap,
   ArrowRight,
@@ -17,7 +17,6 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/dashboard/layouts/DashboardLayout'
-import { KPICard } from '@/dashboard/components/KPICard'
 import { SimuladorMapa } from '@/dashboard/components/SimuladorMapa'
 import { Toast } from '@/dashboard/components/Toast'
 import { ConfirmDialog } from '@/dashboard/components/ConfirmDialog'
@@ -64,6 +63,7 @@ function buildRoutes(pdvs: PDV[], reponedores: Reponedor[]) {
 }
 
 export function SimuladorPage(_props: SimulatorPageProps) {
+  const [searchParams] = useSearchParams()
   const {
     reponedores,
     pdvs,
@@ -79,6 +79,15 @@ export function SimuladorPage(_props: SimulatorPageProps) {
   const [animating, setAnimating] = useState(false)
   const [showOptimized, setShowOptimized] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [sourceRepId, setSourceRepId] = useState<string | null>(null)
+
+  /* Read ?source= param from URL */
+  useEffect(() => {
+    const source = searchParams.get('source')
+    if (source) {
+      setSourceRepId(source)
+    }
+  }, [searchParams])
   const [toast, setToast] = useState<{ visible: boolean; type: 'success' | 'error' | 'info'; title: string; message?: string }>({
     visible: false, type: 'success', title: '', message: '',
   })
@@ -95,9 +104,6 @@ export function SimuladorPage(_props: SimulatorPageProps) {
   const overloadedCount = reponedores.filter(r => r.status === 'overloaded').length
   const optimizedOverloaded = optimizedReponedores.filter(r => r.status === 'overloaded').length
 
-  const kmSavedCount = useCountUp(23, 2000, true)
-  const overloadedCountUp = useCountUp(overloadedCount, 1500, true)
-  const channelCountUp = useCountUp(100, 2000, true)
   const reassignedCount = useCountUp(12, 2500, showOptimized)
 
   const showToast = useCallback((type: 'success' | 'error' | 'info', title: string, message?: string) => {
@@ -135,7 +141,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
   const handleConfirmApply = useCallback(() => {
     setConfirmOpen(false)
     applyOptimized()
-    showToast('success', 'Redistribution Applied Successfully', 'The redistribution plan has been scheduled for the next operational cycle.')
+    showToast('success', 'Redistribución aplicada correctamente', 'El plan de redistribución ha sido programado para el próximo ciclo operativo.')
   }, [applyOptimized, showToast])
 
   const handleCancelApply = useCallback(() => {
@@ -144,16 +150,16 @@ export function SimuladorPage(_props: SimulatorPageProps) {
 
   const handleExport = useCallback((format: string) => {
     const kpiData = [
-      { label: 'Km Saved', value: '-23%' },
-      { label: 'Overloaded Replenishers', value: '4' },
-      { label: 'Channel Coverage', value: '100%' },
-      { label: 'Recovered Time', value: '4h 20m' },
+      { label: 'Km ahorrados', value: '-23%' },
+      { label: 'Reponedores sobrecargados', value: '4' },
+      { label: 'Cobertura de canal', value: '100%' },
+      { label: 'Tiempo recuperado', value: '4h 20m' },
     ]
     const impactData = [
-      { label: 'PDVs Reassigned', value: '12' },
-      { label: 'Less Distance Traveled', value: '23%' },
-      { label: 'Overloads Resolved', value: '4' },
-      { label: 'Channel Coverage', value: '100%' },
+      { label: 'PDVs reasignados', value: '12' },
+      { label: 'Menos distancia recorrida', value: '23%' },
+      { label: 'Sobrecargas resueltas', value: '4' },
+      { label: 'Cobertura de canal', value: '100%' },
     ]
     const reassignments = [
       { from: 'Rep. 1', to: 'Rep. 5', pdvs: 5 },
@@ -176,58 +182,22 @@ export function SimuladorPage(_props: SimulatorPageProps) {
     try {
       if (format === 'pdf') {
         exportPDF(data)
-        showToast('success', 'PDF exported successfully')
+        showToast('success', 'PDF exportado correctamente')
       } else if (format === 'xlsx') {
         exportExcel(data)
-        showToast('success', 'Excel exported successfully')
+        showToast('success', 'Excel exportado correctamente')
       } else if (format === 'geojson') {
         exportGeoJSON(data)
-        showToast('success', 'GeoJSON exported successfully')
+        showToast('success', 'GeoJSON exportado correctamente')
       }
     } catch {
-      showToast('error', 'Export failed', 'Could not generate the requested file.')
+      showToast('error', 'Error al exportar', 'No se pudo generar el archivo solicitado.')
     }
   }, [optimizedRoutes, displayPdvs, showToast])
 
   return (
-    <DashboardLayout currentPage="Simulator">
+    <DashboardLayout currentPage="Simulador">
       <div className="p-4 space-y-4">
-        {/* ===== TOP KPI ROW ===== */}
-        <div className="grid grid-cols-4 gap-4">
-          <KPICard
-            label="Km Saved"
-            value={showOptimized ? `-${kmSavedCount}%` : '—'}
-            icon={<TrendingDown className="w-5 h-5" />}
-            trend="vs Current Plan"
-            trendDirection={showOptimized ? 'up' : 'down'}
-            iconBgClass="bg-[#DC2626]"
-          />
-          <KPICard
-            label="Overloaded Replenishers"
-            value={showOptimized ? String(optimizedOverloaded) : String(overloadedCountUp)}
-            icon={<Users className="w-5 h-5" />}
-            trend="of 23 replenishment workers"
-            trendDirection={showOptimized ? 'up' : 'down'}
-            iconBgClass="bg-[#DC2626]"
-          />
-          <KPICard
-            label="Channel Coverage"
-            value={showOptimized ? `${channelCountUp}%` : '68%'}
-            icon={<Target className="w-5 h-5" />}
-            trend="Traditional Channel"
-            trendDirection={showOptimized ? 'up' : 'down'}
-            iconBgClass="bg-[#16A34A]"
-          />
-          <KPICard
-            label="Recovered Time"
-            value={showOptimized ? '4h 20m' : '0h 0m'}
-            icon={<Clock className="w-5 h-5" />}
-            trend="per day"
-            trendDirection={showOptimized ? 'up' : 'down'}
-            iconBgClass="bg-[#F59E0B]"
-          />
-        </div>
-
         {/* ===== SIMULATOR CONTROL PANEL ===== */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-5">
           <div className="flex items-center justify-between">
@@ -236,10 +206,10 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 <GitCompare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-[#111827]">Redistribution Simulator</h2>
+                <h2 className="text-base font-bold text-[#111827]">Simulador de redistribución</h2>
                 <p className="text-xs text-[#6B7280] mt-0.5 max-w-xl">
-                  Redistribute PDVs among replenishment workers to balance workloads,
-                  reduce travel distance, and improve channel coverage.
+                  Redistribuir PDVs entre los reponedores para equilibrar cargas de trabajo,
+                  reducir la distancia de viaje y mejorar la cobertura de canal.
                 </p>
               </div>
             </div>
@@ -252,7 +222,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                   className="px-4 py-2 bg-white border border-[#E5E7EB] text-[#111827] rounded-lg text-xs font-semibold hover:bg-gray-50 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   <RefreshCw className={cn('w-3.5 h-3.5', animating && 'animate-spin')} />
-                  Reset
+                  Restablecer
                 </button>
               ) : (
                 <button
@@ -265,17 +235,17 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                   ) : (
                     <Zap className="w-3.5 h-3.5" />
                   )}
-                  {animating ? 'Optimizing...' : 'Optimize Redistribution'}
+                  {animating ? 'Optimizando...' : 'Optimizar redistribución'}
                 </button>
               )}
 
               <div className="bg-[#FEF2F2] rounded-lg px-3 py-2 max-w-[180px] border border-[#FECACA]">
                 <div className="flex items-center gap-1 text-[#DC2626]">
                   <Sparkles className="w-3 h-3" />
-                  <span className="text-[9px] font-semibold uppercase tracking-wider">AI Insight</span>
+                  <span className="text-[9px] font-semibold uppercase tracking-wider">Informe IA</span>
                 </div>
                 <p className="text-[10px] text-[#991B1B] mt-0.5 leading-snug">
-                  Redistributing 12 PDVs across 3 workers can reduce travel by 23%.
+                  Redistribuir 12 PDVs entre 3 trabajadores puede reducir el viaje en un 23%.
                 </p>
               </div>
             </div>
@@ -288,15 +258,25 @@ export function SimuladorPage(_props: SimulatorPageProps) {
           )}
         </div>
 
+        {/* ===== SOURCE REPLENISHER BANNER ===== */}
+        {sourceRepId && (
+          <div className="bg-[#FEF2F2] rounded-lg border border-[#FECACA] px-4 py-2.5 flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-[#DC2626] shrink-0" />
+            <p className="text-xs text-[#111827]">
+              Reponedor <strong className="font-semibold">{sourceRepId.toUpperCase()}</strong> seleccionado desde la vista de reponedores. Sus datos de carga están resaltados en el panel <strong className="font-semibold">Estado actual</strong>.
+            </p>
+          </div>
+        )}
+
         {/* ===== MAIN COMPARISON SECTION ===== */}
         <div className="grid grid-cols-12 gap-3">
           {/* LEFT - Current State */}
           <div className="col-span-5 bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden transition-all duration-500">
             <div className="px-4 py-2.5 border-b border-[#E5E7EB] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[#111827]">Current State</h3>
+                <h3 className="text-sm font-bold text-[#111827]">Estado actual</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF2F2] text-[#DC2626]">
-                  {overloadedCount} Overloaded
+                  {overloadedCount} Sobrecargados
                 </span>
               </div>
               <BarChart3 className="w-4 h-4 text-[#6B7280]" />
@@ -316,38 +296,41 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 />
               </div>
               <div className="col-span-5 p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Workload by worker</p>
-                {reponedores.map(rep => (
-                  <div key={rep.id} className="flex items-center gap-1.5">
-                    <div
-                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: rep.color }}
-                    />
-                    <span className="text-[10px] text-[#6B7280] flex-1 truncate">{rep.name}</span>
-                    <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
+                <p className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Carga por trabajador</p>
+                {reponedores.map(rep => {
+                  const isSource = sourceRepId !== null && (rep.id === sourceRepId || rep.name.toLowerCase().includes(sourceRepId.toLowerCase()))
+                  return (
+                    <div key={rep.id} className={cn('flex items-center gap-1.5 rounded px-1 -mx-1', isSource && 'bg-[#FEF2F2] ring-1 ring-[#DC2626] py-0.5')}>
                       <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${Math.min(rep.workload, 100)}%`,
-                          backgroundColor: rep.workload > 85 ? '#DC2626' : rep.workload >= 70 ? '#F59E0B' : '#16A34A',
-                        }}
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: rep.color }}
                       />
+                      <span className={cn('text-[10px] flex-1 truncate', isSource ? 'font-bold text-[#111827]' : 'text-[#6B7280]')}>{rep.name}</span>
+                      <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${Math.min(rep.workload, 100)}%`,
+                            backgroundColor: rep.workload > 85 ? '#DC2626' : rep.workload >= 70 ? '#F59E0B' : '#16A34A',
+                          }}
+                        />
+                      </div>
+                      <span className={cn(
+                        'text-[10px] font-bold w-7 text-right',
+                        rep.workload > 85 ? 'text-[#DC2626]' : rep.workload >= 70 ? 'text-[#F59E0B]' : 'text-[#16A34A]'
+                      )}>
+                        {rep.workload}%
+                      </span>
                     </div>
-                    <span className={cn(
-                      'text-[10px] font-bold w-7 text-right',
-                      rep.workload > 85 ? 'text-[#DC2626]' : rep.workload >= 70 ? 'text-[#F59E0B]' : 'text-[#16A34A]'
-                    )}>
-                      {rep.workload}%
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
             <div className="px-4 py-2 bg-[#FEF2F2] border-t border-[#FECACA]">
               <div className="flex items-center gap-1.5 text-[#DC2626]">
                 <AlertTriangle className="w-3.5 h-3.5" />
                 <span className="text-[11px] font-medium">
-                  {overloadedCount} overloaded replenishment workers • 54% workload imbalance
+                  {overloadedCount} reponedores sobrecargados • 54% desequilibrio de carga
                 </span>
               </div>
             </div>
@@ -359,8 +342,8 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               <div className="w-8 h-8 rounded-full bg-[#FEF2F2] flex items-center justify-center mx-auto mb-1.5">
                 <Split className="w-4 h-4 text-[#DC2626]" />
               </div>
-              <h3 className="text-xs font-bold text-[#111827]">Redistribution Actions</h3>
-              <p className="text-[9px] text-[#6B7280] mt-0.5">Pending transfers</p>
+              <h3 className="text-xs font-bold text-[#111827]">Acciones de redistribución</h3>
+              <p className="text-[9px] text-[#6B7280] mt-0.5">Transferencias pendientes</p>
             </div>
 
             <div className="space-y-2.5 w-full">
@@ -423,7 +406,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               <div className="mt-2.5 text-center animate-in fade-in duration-500">
                 <div className="inline-flex items-center gap-0.5 text-[#16A34A] text-[10px] font-semibold bg-[#F0FDF4] px-2.5 py-1 rounded-full">
                   <CheckCircle2 className="w-3 h-3" />
-                  All transfers applied
+                  Todas las transferencias aplicadas
                 </div>
               </div>
             )}
@@ -433,12 +416,12 @@ export function SimuladorPage(_props: SimulatorPageProps) {
           <div className="col-span-5 bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden transition-all duration-500">
             <div className="px-4 py-2.5 border-b border-[#E5E7EB] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-[#111827]">Optimized Proposal</h3>
+                <h3 className="text-sm font-bold text-[#111827]">Propuesta optimizada</h3>
                 <span className={cn(
                   'text-[10px] font-bold px-2 py-0.5 rounded-full',
                   showOptimized ? 'bg-[#F0FDF4] text-[#16A34A]' : 'bg-gray-100 text-[#9CA3AF]'
                 )}>
-                  {showOptimized ? '0 Overloaded' : 'Pending'}
+                  {showOptimized ? '0 Sobrecargados' : 'Pendiente'}
                 </span>
               </div>
               <Target className="w-4 h-4 text-[#16A34A]" />
@@ -462,7 +445,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 />
               </div>
               <div className="col-span-5 p-2.5 space-y-1">
-                <p className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Balanced workload</p>
+                <p className="text-[10px] font-semibold text-[#6B7280] uppercase tracking-wider mb-1.5">Carga equilibrada</p>
                 {optimizedReponedores.map(rep => (
                   <div key={rep.id} className="flex items-center gap-1.5">
                     <div
@@ -497,8 +480,8 @@ export function SimuladorPage(_props: SimulatorPageProps) {
                 <CheckCircle2 className={cn('w-3.5 h-3.5', showOptimized ? 'text-[#16A34A]' : 'text-[#9CA3AF]')} />
                 <span className={cn('text-[11px] font-medium', showOptimized ? 'text-[#16A34A]' : 'text-[#9CA3AF]')}>
                   {showOptimized
-                    ? 'Balanced workload • More efficient routes • No overloads'
-                    : 'Run optimization to see the proposal'}
+                    ? 'Carga equilibrada • Rutas más eficientes • Sin sobrecargas'
+                    : 'Ejecuta la optimización para ver la propuesta'}
                 </span>
               </div>
             </div>
@@ -509,15 +492,15 @@ export function SimuladorPage(_props: SimulatorPageProps) {
         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-bold text-[#111827]">Redistribution Impact</h2>
+              <h2 className="text-sm font-bold text-[#111827]">Impacto de la redistribución</h2>
               <p className="text-[10px] text-[#6B7280] mt-0.5">
-                {showOptimized ? 'Optimization applied successfully' : 'Run the simulator to see projected impact'}
+                {showOptimized ? 'Optimización aplicada correctamente' : 'Ejecuta el simulador para ver el impacto proyectado'}
               </p>
             </div>
             {showOptimized && (
               <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] flex items-center gap-1">
                 <CheckCircle2 className="w-2.5 h-2.5" />
-                Optimized
+                Optimizado
               </span>
             )}
           </div>
@@ -526,26 +509,26 @@ export function SimuladorPage(_props: SimulatorPageProps) {
             <ImpactCard
               icon={<GitCompare className="w-4 h-4" />}
               value={showOptimized ? String(reassignedCount) : '—'}
-              label="PDVs Reassigned"
+              label="PDVs reasignados"
               active={showOptimized}
             />
             <ImpactCard
               icon={<TrendingDown className="w-4 h-4" />}
               value={showOptimized ? '23%' : '—'}
-              label="Less Distance Traveled"
+              label="Menos distancia recorrida"
               active={showOptimized}
             />
             <ImpactCard
               icon={<Users className="w-4 h-4" />}
               value={showOptimized ? '4' : String(overloadedCount)}
-              label="Overloads Resolved"
+              label="Sobrecargas resueltas"
               active={showOptimized}
               negative={!showOptimized}
             />
             <ImpactCard
               icon={<Target className="w-4 h-4" />}
               value={showOptimized ? '100%' : '68%'}
-              label="Channel Coverage"
+              label="Cobertura de canal"
               active={showOptimized}
             />
           </div>
@@ -569,12 +552,12 @@ export function SimuladorPage(_props: SimulatorPageProps) {
             {applied ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                Redistribution Applied
+                Redistribución aplicada
               </>
             ) : (
               <>
                 <Zap className="w-4 h-4" />
-                Apply Redistribution
+                Aplicar redistribución
               </>
             )}
           </button>
@@ -585,7 +568,7 @@ export function SimuladorPage(_props: SimulatorPageProps) {
               className="px-6 py-2.5 rounded-lg text-xs font-semibold border border-[#E5E7EB] bg-white text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#111827] transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             >
               <Download className="w-4 h-4" />
-              Export Proposal
+              Exportar propuesta
             </button>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block animate-in fade-in duration-200">
               <div className="bg-white border border-[#E5E7EB] rounded-lg shadow-lg p-1.5 flex gap-1">
@@ -602,10 +585,10 @@ export function SimuladorPage(_props: SimulatorPageProps) {
       <Toast visible={toast.visible} type={toast.type} title={toast.title} message={toast.message} onClose={closeToast} />
       <ConfirmDialog
         open={confirmOpen}
-        title="Apply Redistribution Plan"
-        message="Are you sure you want to apply the proposed redistribution? This operation will update replenisher assignments for the next operational cycle."
-        confirmLabel="Confirm"
-        cancelLabel="Cancel"
+        title="Aplicar plan de redistribución"
+        message="¿Estás seguro de aplicar la redistribución propuesta? Esta operación actualizará las asignaciones de los reponedores para el próximo ciclo operativo."
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
         onConfirm={handleConfirmApply}
         onCancel={handleCancelApply}
       />

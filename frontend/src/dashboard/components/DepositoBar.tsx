@@ -22,7 +22,7 @@ export function DepositoBar({ deposito }: DepositoBarProps) {
           style={{ width: `${percentage}%`, backgroundColor: barColor }}
         />
       </div>
-      <span className="text-xs text-[#6B7280] mt-1 block">{percentage}% filled</span>
+      <span className="text-xs text-[#6B7280] mt-1 block">{percentage}% ocupado</span>
     </div>
   )
 }

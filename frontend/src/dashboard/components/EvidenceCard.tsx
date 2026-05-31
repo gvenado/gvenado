@@ -40,7 +40,7 @@ export function EvidenceCard({ evidence, onClick }: EvidenceCardProps) {
           afterLabel={evidence.afterLabel}
         />
         <div className="absolute top-2 right-2 z-10 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 border border-[#E5E7EB] shadow-sm">
-          <p className="text-[10px] font-medium text-[#6B7280] leading-tight">Faces Gained</p>
+          <p className="text-[10px] font-medium text-[#6B7280] leading-tight">Caras ganadas</p>
           <p className="text-sm font-bold text-[#16A34A] leading-tight">+{evidence.facesGained}</p>
         </div>
       </div>

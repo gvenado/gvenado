@@ -1,4 +1,6 @@
-import { RotateCcw } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { RotateCcw, Calendar } from 'lucide-react'
+import { DatePickerCalendar } from './DatePickerCalendar'
 
 interface GalleryFiltersProps {
   replenisher: string
@@ -14,16 +16,22 @@ export function GalleryFilters({
   replenisher, date, status,
   onReplenisherChange, onDateChange, onStatusChange, onClear,
 }: GalleryFiltersProps) {
+  const [calendarOpen, setCalendarOpen] = useState(false)
+
+  const handleClear = useCallback(() => {
+    onClear()
+  }, [onClear])
+
   return (
     <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm px-5 py-3 flex items-center gap-4">
       <div className="flex items-center gap-2">
-        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Replenisher</label>
+        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Reponedor</label>
         <select
           value={replenisher}
           onChange={e => onReplenisherChange(e.target.value)}
           className="text-xs border border-[#E5E7EB] rounded-md px-3 py-1.5 text-[#111827] bg-white outline-none focus:border-[#DC2626] appearance-none"
         >
-          <option value="all">All</option>
+          <option value="all">Todos</option>
           <option value="Rep 1">Rep 1</option>
           <option value="Rep 2">Rep 2</option>
           <option value="Rep 3">Rep 3</option>
@@ -34,36 +42,44 @@ export function GalleryFilters({
         </select>
       </div>
 
-      <div className="flex items-center gap-2">
-        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Date</label>
-        <input
-          type="text"
-          value={date}
-          onChange={e => onDateChange(e.target.value)}
-          className="text-xs border border-[#E5E7EB] rounded-md px-3 py-1.5 text-[#111827] bg-white outline-none focus:border-[#DC2626] w-[110px]"
-        />
+      <div className="flex items-center gap-2 relative">
+        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Fecha</label>
+        <button
+          onClick={() => setCalendarOpen(!calendarOpen)}
+          className="text-xs border border-[#E5E7EB] rounded-md px-3 py-1.5 text-[#111827] bg-white outline-none focus:border-[#DC2626] flex items-center gap-1.5 w-[120px]"
+        >
+          <Calendar className="w-3 h-3 text-[#6B7280] shrink-0" />
+          <span>{date}</span>
+        </button>
+        {calendarOpen && (
+          <DatePickerCalendar
+            value={date}
+            onChange={onDateChange}
+            onClose={() => setCalendarOpen(false)}
+          />
+        )}
       </div>
 
       <div className="flex items-center gap-2">
-        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Status</label>
+        <label className="text-xs font-medium text-[#6B7280] whitespace-nowrap">Estado</label>
         <select
           value={status}
           onChange={e => onStatusChange(e.target.value)}
           className="text-xs border border-[#E5E7EB] rounded-md px-3 py-1.5 text-[#111827] bg-white outline-none focus:border-[#DC2626] appearance-none"
         >
-          <option value="all">All</option>
-          <option value="completed">Completed</option>
-          <option value="improved">Improved</option>
-          <option value="stock_break">Stock Break</option>
+          <option value="all">Todos</option>
+          <option value="completed">Completado</option>
+          <option value="improved">Mejorado</option>
+          <option value="stock_break">Quiebre</option>
         </select>
       </div>
 
       <button
-        onClick={onClear}
-        className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1 ml-auto"
+        onClick={handleClear}
+        className="text-xs font-semibold text-[#DC2626] hover:text-[#B91C1C] transition-colors flex items-center gap-1 ml-auto hover:underline"
       >
         <RotateCcw className="w-3 h-3" />
-        Clear Filters
+        Limpiar filtros
       </button>
     </div>
   )

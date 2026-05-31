@@ -15,10 +15,10 @@ const statusStyles: Record<string, { badgeBg: string; badgeText: string; barColo
 }
 
 const statusLabels: Record<string, string> = {
-  optimal: 'Optimal',
-  stable: 'Stable',
-  alert: 'Alert',
-  critical: 'Critical',
+  optimal: 'Óptimo',
+  stable: 'Estable',
+  alert: 'Alerta',
+  critical: 'Crítico',
 }
 
 export function WarehouseRow({ warehouse, selected, onSelect }: WarehouseRowProps) {

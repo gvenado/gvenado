@@ -7,7 +7,7 @@ interface BeforeAfterSliderProps {
   afterLabel?: string
 }
 
-export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel = 'Before', afterLabel = 'After' }: BeforeAfterSliderProps) {
+export function BeforeAfterSlider({ beforeSrc, afterSrc, beforeLabel = 'Antes', afterLabel = 'Después' }: BeforeAfterSliderProps) {
   const [sliderPos, setSliderPos] = useState(50)
   const containerRef = useRef<HTMLDivElement>(null)
 

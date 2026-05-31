@@ -24,8 +24,8 @@ function toMarkerData(reponedores: Reponedor[], pdvs: PDV[]): ReplenisherMarkerD
       nextPdv: assignedPdvs[currentIdx + 1]?.id ?? 'N/A',
       eta: `${10 + i * 2}:${String(5 + i * 10).padStart(2, '0')}`,
       efficiency: `${80 + Math.floor(Math.random() * 15)}%`,
-      deviation: rep.status === 'overloaded' ? `+${15 + i * 3} min` : 'On track',
-      mobilityProfile: i % 2 === 0 ? 'Moderate' : 'Fast',
+      deviation: rep.status === 'overloaded' ? `+${15 + i * 3} min` : 'En tiempo',
+      mobilityProfile: i % 2 === 0 ? 'Moderado' : 'Rápido',
       routePoints,
     }
   })
@@ -51,7 +51,7 @@ export function useReponedores(pdvs: PDV[]) {
       })
       .catch(err => {
         if (cancelled) return
-        setError(err instanceof Error ? err.message : 'Failed to load replenishers')
+        setError(err instanceof Error ? err.message : 'Error al cargar reponedores')
         setLoading(false)
       })
 
